@@ -1,20 +1,15 @@
 import { connect } from "cloudflare:sockets";
 
 // 配置区块
-let 订阅路径 = "sub";
-let 我的UUID = "550e8400-e29b-41d4-a716-446655440000";
+let 订阅路径 = "test";
+let 我的UUID = "550e8400-e29b-41d4-a716-446655440035";
 let 默认节点名称 = "节点";
 
 let 我的优选 = [];
 let TXT_URL_ENV = "";
 let 我的优选TXT = [
-  "https://raw.githubusercontent.com/ImLTHQ/edge-tunnel/main/Domain.txt",
-  "https://raw.githubusercontent.com/ImLTHQ/edge-tunnel/main/HKG.txt",
-  "https://raw.githubusercontent.com/ImLTHQ/edge-tunnel/main/KHH.txt",
-  "https://raw.githubusercontent.com/ImLTHQ/edge-tunnel/main/NRT.txt",
-  "https://raw.githubusercontent.com/ImLTHQ/edge-tunnel/main/LAX.txt",
-  "https://raw.githubusercontent.com/ImLTHQ/edge-tunnel/main/SEA.txt",
-  "https://raw.githubusercontent.com/ImLTHQ/edge-tunnel/main/SJC.txt",
+  "https://raw.githubusercontent.com/dsddr02/ipupdate/refs/heads/main/valid_ips.txt"
+  
 ];  // 格式: 地址:端口#节点名称  端口不填默认443 节点名称不填则使用默认节点名称，任何都不填使用自身域名
 
 let 反代IP = "ts.hpc.tw:443"; // 格式：地址:端口
