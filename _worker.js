@@ -1,8 +1,8 @@
 import { connect } from "cloudflare:sockets";
 
 // 配置区块
-let 订阅路径 = "test";
-let 我的UUID = "550e8480-e29b-41d4-a716-446655440000";
+let 订阅路径 = "test123";
+let 我的UUID = "550e8400-e29b-41d4-a716-446655445800";
 let 默认节点名称 = "节点";
 
 let 优选TXT = [
@@ -85,7 +85,9 @@ export default {
             访问请求 = new Request(url, 访问请求);
             return fetch(访问请求);
           } else {
-            return 生成项目介绍页面();
+            return new Response(生成项目介绍页面(),{
+              status: 200,
+              headers: { "Content-Type": "text/html;charset=utf-8" },});
           }
       }
     } else if (读取我的请求标头 === "websocket") {
@@ -355,8 +357,7 @@ function 测试SOCKS5和反代IP() {
 }
 
 function 生成项目介绍页面() {
-  return new Response(
-    `
+  return `
 <title>项目介绍</title>
 <style>
 body {
@@ -366,15 +367,15 @@ body {
 <pre>
 <strong>edge-tunnel</strong>
 
-这是一种基于CF Pages的免费代理方案
+这是一个基于CF Pages平台的JavaScript,在天书的基础上进行优化
 <a href="https://github.com/ImLTHQ/edge-tunnel" target="_blank">点我跳转仓库</a>
+
+不要想着嫖别人订阅啦, 自己部署一个不香吗?
+
+本项目仅供教育、研究和安全测试目的而设计和开发
+旨在为安全研究人员、学术界人士及技术爱好者提供一个探索和实践网络通信技术的工具
 </pre>
-    `,
-    {
-      status: 200,
-      headers: { "Content-Type": "text/html;charset=utf-8" },
-    }
-  );
+`
 }
 
 // 订阅页面
@@ -472,14 +473,20 @@ rule-providers:
   reject-domain:
     type: http
     behavior: domain
-    url: "https://raw.githubusercontent.com/ImLTHQ/edge-tunnel/main/ClashRuleSet/reject-domain.list"
+    url: "https://github.9898981.xyz/https://raw.githubusercontent.com/dsddr02/ipupdate/refs/heads/main/easylist_adservers.list"
     path: ./ruleset/reject-domain.yaml
     interval: 86400
-
+  
+  reject-domain1:
+    type: http
+    behavior: domain
+    url: "https://github.9898981.xyz/https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/refs/heads/master/Clash/BanEasyList.list"
+    path: ./ruleset/reject-domain1.yaml
+    interval: 86400
   reject-ip:
     type: http
     behavior: ipcidr
-    url: "https://raw.githubusercontent.com/ImLTHQ/edge-tunnel/main/ClashRuleSet/reject-ip.list"
+    url: "https://github.9898981.xyz/https://raw.githubusercontent.com/ImLTHQ/edge-tunnel/main/ClashRuleSet/reject-ip.list"
     path: ./ruleset/reject-ip.yaml
     interval: 86400
 
@@ -489,6 +496,7 @@ rules:
   - GEOSITE,CN,🎯 CN直连
   - GEOIP,CLOUDFLARE,🎯 CF规则
   - RULE-SET,reject-domain,🛑 广告拦截
+  - RULE-SET,reject-domain1,🛑 广告拦截
   - RULE-SET,reject-ip,🛑 广告拦截
   - MATCH,🚀 节点选择
 `;
