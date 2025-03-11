@@ -473,16 +473,11 @@ rule-providers:
   reject-domain:
     type: http
     behavior: domain
-    url: "https://github.9898981.xyz/https://raw.githubusercontent.com/dsddr02/ipupdate/refs/heads/main/easylist_adservers.list"
-    path: ./ruleset/reject-domain.yaml
+    url: "https://github.9898981.xyz/https://raw.githubusercontent.com/dsddr02/ipupdate/refs/heads/main/adblock.list"
+    path: ./ruleset/adblock.list
     interval: 86400
   
-  reject-domain1:
-    type: http
-    behavior: domain
-    url: "https://github.9898981.xyz/https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/refs/heads/master/Clash/BanEasyList.list"
-    path: ./ruleset/reject-domain1.yaml
-    interval: 86400
+
   reject-ip:
     type: http
     behavior: ipcidr
