@@ -632,8 +632,7 @@ rule-providers:
     interval: 86400
   ip: &ip {type: http, interval: 86400, behavior: ipcidr, format: mrs}
   domain: &domain {type: http, interval: 86400, behavior: domain, format: mrs}
-  class: &class {type: http, interval: 86400, behavior: classical, format: text}
-rule-providers: 
+  class: &class {type: http, interval: 86400, behavior: classical, format: text} 
   private_domain: {!!merge <<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/private.mrs"}
   proxylite: {!!merge <<: *class, url: "https://raw.githubusercontent.com/qichiyuhub/rule/refs/heads/master/ProxyLite.list"}
   ai: { <<: *domain, url: "https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/category-ai-chat-!cn.mrs" }
@@ -659,10 +658,7 @@ rule-providers:
 
 
 rules:
-  - GEOIP,LAN,DIRECT
-  - GEOIP,CN,🎯 CN直连
-  - GEOSITE,CN,🎯 CN直连
-  - GEOIP,CLOUDFLARE,🎯 CF规则
+  
   - RULE-SET,reject-domain,🛑 广告拦截
   - RULE-SET,reject-ip,🛑 广告拦截
   - RULE-SET,private_domain,全球直连
