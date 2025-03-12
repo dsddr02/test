@@ -456,7 +456,7 @@ proxy-groups:
     - 🌐 全部节点
     - 全球直连
 
-- name: 🎯 CN直连
+- name: 全球直连
   type: select
   proxies:
     - DIRECT
