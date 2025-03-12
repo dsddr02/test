@@ -484,7 +484,7 @@ proxy-groups:
 - name: 🚀 节点选择
   type: select
   proxies:
-    - ♻️ 延迟优选
+    
     - 🔯 香港故转
     - 🔯 日本故转
     - ♻️ 香港自动
@@ -516,14 +516,7 @@ proxy-groups:
     - DIRECT
     - 🚀 节点选择
 
-- name: ♻️ 延迟优选
-  type: url-test
-  url: https://www.google.com/generate_204
-  interval: 3000
-  tolerance: 100
-  udp: true
-  proxies:
-${代理配置}
+
 
 - name: 📹 YouTube
   type: select
@@ -617,8 +610,8 @@ ${代理配置}
   include-all: true
   tolerance: 20
   interval: 300
-  filter: "(?=.*(港|HK|(?i)Hong))^((?!(台|日|韩|新|深|美)).)*$"
-
+  proxies:
+${代理配置}
 - name: 🔯 日本故转
   type: fallback
   include-all: true
