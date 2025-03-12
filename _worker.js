@@ -433,7 +433,8 @@ function clash配置文件(hostName) {
 
   return `
 proxies:
-  ${代理配置}
+${节点配置}
+
 
 
 proxy-groups:
