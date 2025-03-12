@@ -519,7 +519,7 @@ proxy-groups:
 - name: ♻️ 延迟优选
   type: url-test
   url: https://www.google.com/generate_204
-  interval: 300
+  interval: 3000
   tolerance: 100
   udp: true
   proxies:
