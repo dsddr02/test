@@ -432,8 +432,8 @@ function clash配置文件(hostName) {
 
   return `
 proxies:
-${节点配置}
- udp: true
+  ${代理配置}
+udp: true
 
 proxy-groups:
 - name: 🚀 节点选择
