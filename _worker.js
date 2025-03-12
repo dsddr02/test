@@ -606,10 +606,9 @@ proxy-groups:
   filter: "(?i)美|us|unitedstates|united states"
 
 - name: 🔯 香港故转
-  type: fallback
-  include-all: true
-  tolerance: 20
-  interval: 300
+  type: fallbac
+  tolerance: 200
+  interval: 3000
   proxies:
 ${代理配置}
 - name: 🔯 日本故转
@@ -640,12 +639,7 @@ ${代理配置}
   interval: 300
   filter: "(?=.*(美|US|(?i)States|America))^((?!(港|台|日|韩|新)).)*$"
 
-- name: ♻️ 自动选择
-  type: url-test
-  include-all: true
-  tolerance: 20
-  interval: 300
-  filter: "^((?!(直连)).)*$"
+
 
 - name: 🌐 全部节点
   type: select
