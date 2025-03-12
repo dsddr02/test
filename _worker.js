@@ -477,6 +477,7 @@ proxy-groups:
   url: https://www.google.com/generate_204
   interval: 300
   tolerance: 100
+  udp: true
   proxies:
 ${代理配置}
 
