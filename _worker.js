@@ -606,7 +606,7 @@ proxy-groups:
   filter: "(?i)美|us|unitedstates|united states"
 
 - name: 🔯 香港故转
-  type: fallbac
+  type: fallback
   tolerance: 200
   interval: 3000
   proxies:
