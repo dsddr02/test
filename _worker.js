@@ -433,11 +433,11 @@ function clash配置文件(hostName) {
   return `
 proxies:
 ${节点配置}
+ udp: true
 
 proxy-groups:
 - name: 🚀 节点选择
   type: select
-  udp: true
   proxies:
     - ♻️ 延迟优选
     - 🔯 香港故转
@@ -452,93 +452,80 @@ proxy-groups:
     - 🌐 全部节点
     - 全球直连
 
-
-- name: "全球直连"
-  type: direct
-  udp: true  
+- name: 全球直连
+  type: select
+  proxies:
+    - DIRECT
+    
 
 - name: 🎯 CF规则
   type: select
-  udp: true
   proxies:
     - 🚀 节点选择
     - DIRECT
 
 - name: 🛑 广告拦截
   type: select
-  udp: true
   proxies:
     - REJECT
     - DIRECT
     - 🚀 节点选择
-  
 
 - name: ♻️ 延迟优选
   type: url-test
   url: https://www.google.com/generate_204
-  interval: 3000
+  interval: 300
   tolerance: 100
-  udp: true
   proxies:
 ${代理配置}
 
 - name: 📹 YouTube
   type: select
-  udp: true
   proxies:
     - 🚀 节点选择
 
 - name: 🍀 Google
   type: select
-  udp: true
   proxies:
     - 🚀 节点选择
 
 - name: 🤖 ChatGPT
   type: select
-  udp: true
   proxies:
     - 🚀 节点选择
 
 - name: 👨🏿‍💻 GitHub
   type: select
-  udp: true
   proxies:
     - 🚀 节点选择
 
 - name: 🐬 OneDrive
   type: select
-  udp: true
   proxies:
     - 🚀 节点选择
 
 - name: 🪟 Microsoft
   type: select
-  udp: true
   proxies:
     - 🚀 节点选择
 
 - name: 🎵 TikTok
   type: select
-  udp: true
   proxies:
     - 🚀 节点选择
 
 - name: 📲 Telegram
   type: select
-  udp: true
   proxies:
     - 🚀 节点选择
 
 - name: 🎥 NETFLIX
   type: select
-  udp: true
   proxies:
     - 🚀 节点选择
 
 - name: ✈️ Speedtest
   type: select
-  udp: true
   proxies:
     - 🚀 节点选择
 
@@ -555,14 +542,12 @@ ${代理配置}
 
 - name: 🎯 全球直连
   type: select
-  udp: true
   proxies:
     - 全球直连
     - 🚀 节点选择
 
 - name: 🐟 漏网之鱼
   type: select
-  udp: true
   proxies:
     - 🚀 节点选择
 
@@ -583,7 +568,6 @@ ${代理配置}
 
 - name: 🔯 香港故转
   type: fallback
-  udp: true
   include-all: true
   tolerance: 20
   interval: 300
