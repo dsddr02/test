@@ -620,8 +620,8 @@ rule-providers:
   reject-domain:
     type: http
     behavior: domain
-    url: "https://raw.githubusercontent.com/ImLTHQ/edge-tunnel/main/ClashRuleSet/reject-domain.list"
-    path: ./ruleset/reject-domain.yaml
+    url: "https://raw.githubusercontent.com/dsddr02/ipupdate/refs/heads/main/adblock.list"
+    format: text
     interval: 86400
 
   reject-ip:
@@ -630,9 +630,6 @@ rule-providers:
     url: "https://raw.githubusercontent.com/ImLTHQ/edge-tunnel/main/ClashRuleSet/reject-ip.list"
     path: ./ruleset/reject-ip.yaml
     interval: 86400
-  ip: &ip {type: http, interval: 86400, behavior: ipcidr, format: mrs}
-  domain: &domain {type: http, interval: 86400, behavior: domain, format: mrs}
-  class: &class {type: http, interval: 86400, behavior: classical, format: text} 
   private_domain: {!!merge <<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/private.mrs"}
   proxylite: {!!merge <<: *class, url: "https://raw.githubusercontent.com/qichiyuhub/rule/refs/heads/master/ProxyLite.list"}
   ai: { <<: *domain, url: "https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/category-ai-chat-!cn.mrs" }
