@@ -432,7 +432,9 @@ function clash配置文件(hostName) {
 
   return `
 proxies:
-${节点配置}
+- name: "全球直连"
+  type: direct
+  udp: true
 
 proxy-groups:
 - name: 🚀 节点选择
@@ -451,10 +453,7 @@ proxy-groups:
     - 🌐 全部节点
     - 全球直连
 
-- name: 全球直连
-  type: select
-  proxies:
-    - DIRECT
+
     
 
 - name: 🎯 CF规则
