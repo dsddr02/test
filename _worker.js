@@ -431,9 +431,8 @@ function clash配置文件(hostName) {
     .join("\n");
 
   return `
-- name: "全球直连"
-  type: direct
-  udp: true
+proxies:
+${节点配置}
 
 proxy-groups:
 - name: 🚀 节点选择
