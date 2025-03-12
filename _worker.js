@@ -419,6 +419,7 @@ function clash配置文件(hostName) {
       Host: ${hostName}
       User-Agent: Chrome`,
         proxyConfig: `    - ${节点名字}`,
+  udp: true
       };
     });
   };
@@ -433,7 +434,7 @@ function clash配置文件(hostName) {
   return `
 proxies:
   ${代理配置}
-udp: true
+
 
 proxy-groups:
 - name: 🚀 节点选择
