@@ -610,7 +610,10 @@ ${代理配置}
 - name: 🌐 全部节点
   type: select
   include-all: true
-
+rule-anchor:
+  ip: &ip {type: http, interval: 86400, behavior: ipcidr, format: mrs}
+  domain: &domain {type: http, interval: 86400, behavior: domain, format: mrs}
+  class: &class {type: http, interval: 86400, behavior: classical, format: text}
 rule-providers:
   reject-domain:
     type: http
