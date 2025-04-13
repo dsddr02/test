@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "description": "A simple Express.js server to run X on Serv00",
   "author": "k0baya (https://github.com/k0baya)",
-  "main": "app.js",
+  "main": "a.js",
   "license": "MIT",
   "private": false,
   "scripts": {
-    "start": "node app.js"
+    "start": "node a.js"
   },
   "dependencies": {
     "express": "^4.18.2",
