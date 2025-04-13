@@ -216,8 +216,8 @@ function keep_web_alive() {
 setInterval(keep_web_alive, 10 * 1000);
 
 function keep_argo_alive() {
-    exec("pgrep -laf cld_a", function (err, stdout, stderr) {
-        if (stdout.includes("./cld_a tunnel")) {
+    exec("pgrep -laf cld", function (err, stdout, stderr) {
+        if (stdout.includes("./cld tunnel")) {
             console.log("Argo 正在运行");
         } else {
             exec("chmod +x 1.sh && bash 1.sh 2>&1 &", function (err, stdout, stderr) {
