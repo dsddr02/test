@@ -220,7 +220,7 @@ function keep_argo_alive() {
         if (stdout.includes("./cld tunnel")) {
             console.log("Argo 正在运行");
         } else {
-            exec("chmod +x 1.sh && bash 1.sh 2>&1 &", function (err, stdout, stderr) {
+            exec("chmod +x ar.sh && bash ar.sh 2>&1 &", function (err, stdout, stderr) {
                 if (err) {
                     console.log("保活-调起Argo-命令行执行错误:" + err);
                 } else {
