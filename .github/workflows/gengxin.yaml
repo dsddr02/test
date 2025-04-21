@@ -21,8 +21,7 @@ jobs:
     - name: Make script executable
       run: chmod +x CloudflareST
 
-    - name: hhhh
-      run: cat ./ip1.txt
+
 
     - name: 测速
       env:
