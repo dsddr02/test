@@ -12,24 +12,25 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-      
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install pandas
-   
 
     - name: Make script executable
       run: chmod +x CloudflareST
+
+    - name: hhhh
+      run: cat ./ip1.txt
 
     - name: 测速
       env:
         TEST_URL: ${{ secrets.TEST_URL }}  # 如果是敏感数据，使用 secrets.TEST_URL
       run: |
         set -e
-        ./CloudflareST -f ip1.txt -t 8 -sl 1 -n 600 -dn 15 -dt 10 -tp 8443 -tlr 0 -url $TEST_URL -o HKG.csv
-            python xn.py
+        ./CloudflareST -f ./ip1.txt -t 8 -sl 1 -n 600 -dn 15 -dt 10 -tp 8443 -tlr 0 -url $TEST_URL -o HKG.csv
+        python xn.py
 
     - name: Commit changes to current repository (update1)
       run: |
@@ -49,7 +50,6 @@ jobs:
       with:
          #token: ${{ secrets.GITHUB_TOKEN }}
          token: ${{ secrets.PAT_TOKEN }}
-         
          repository: ${{ github.repository }}
          retain_days: 1
          keep_minimum_runs: 0
