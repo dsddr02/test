@@ -26,9 +26,10 @@ jobs:
     - name: 测速
       env:
         TEST_URL: ${{ secrets.TEST_URL }}  # 如果是敏感数据，使用 secrets.TEST_URL
+        duan_kou: ${{ secrets.duan_kou }}
       run: |
         set -e
-        ./CloudflareST -f ./ip1.txt -t 8 -sl 1 -n 600 -dn 15 -dt 10 -tp 2087 -tlr 0 -url $TEST_URL -o HKG.csv
+        ./CloudflareST -f ./ip1.txt -t 8 -sl 1 -n 600 -dn 15 -dt 10 -tp $duan_kou -tlr 0 -url $TEST_URL -o HKG.csv
         python xn.py
 
     - name: Commit changes to current repository (update1)
