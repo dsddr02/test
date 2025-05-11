@@ -14,7 +14,7 @@ def get_country(ip):
         国家名称字符串，如果获取失败则返回 "Unknown"。
     """
     try:
-        url = f"https://dooh.pk7.dpdns.org/ip-info?ip={ip}"
+        url = f"https://dooh.pk67.dpdns.org/ip-info?ip={ip}"
         response = requests.get(url)
         response.raise_for_status()  # 检查 HTTP 状态码是否正常
         data = response.json()
