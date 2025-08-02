@@ -42,7 +42,7 @@ jobs:
         FILENAME: yd.txt
       run: |
         chmod +x uploadyd.sh
-        ./upload.sh
+        ./uploadyd.sh
 
     - name: Upload valid_ipsyd.txt
       env:
@@ -51,7 +51,7 @@ jobs:
         FILENAME: valid_ipsyd.txt
       run: |
         chmod +x uploadyd.sh
-        ./upload.sh
+        ./uploadyd.sh
 
     - name: Clean up Workflow Runs
       uses: Mattraks/delete-workflow-runs@v2
