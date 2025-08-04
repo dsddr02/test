@@ -52,6 +52,23 @@ jobs:
       run: |
         chmod +x uploadyd.sh
         ./uploadyd.sh
+    - name: Commit changes
+      run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          if [ -n "$(git status --porcelain)" ]; then
+            git add valid_ipsyd.txt yd.txt
+            git commit -m "Automatic update"
+            git push
+          else
+           echo "No changes detected, skipping commit."
+          fi
+          
+    - name: Push changes
+      uses: ad-m/github-push-action@master
+      with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}
 
     - name: Clean up Workflow Runs
       uses: Mattraks/delete-workflow-runs@v2
