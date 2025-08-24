@@ -1,0 +1,52 @@
+name: Speed Test and Upload
+
+on:
+  workflow_dispatch:  # Allows manual triggering of the workflow
+  schedule:
+    - cron: '34 03 * * *'  # Runs daily at midnight UTC
+
+jobs:
+  speed_test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Download ip.txt
+        run: |
+          wget -O ip.txt 'https://dz.pk67.dpdns.org/ip.txt?token=zf004'
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip
+          pip3 install requests
+
+      - name: 测速
+        env:
+          TEST_URL: ${{ secrets.TEST_URL }}
+        run: |
+          set -e
+          chmod +x CloudflareST
+          ./CloudflareST -t 8 -sl 1 -n 100 -dn 40 -tp 2087 -tlr 0 -url $TEST_URL -o HKG.csv
+          rm -f ip.txt
+          python3 xn.py
+
+      - name: Upload ivv.txt
+        env:
+          DOMAIN: ${{ secrets.DOMAIN }}
+          TOKEN: ${{ secrets.UPLOAD_TOKEN }}
+          FILENAME: ivv.txt
+        run: |
+          chmod +x upload.sh
+          ./upload.sh
+      - name: Clean up Workflow Runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+         #token: ${{ secrets.GITHUB_TOKEN }}
+         token: ${{ secrets.PAT_TOKEN }}
+         
+         repository: ${{ github.repository }}
+         retain_days: 1
+         keep_minimum_runs: 0
