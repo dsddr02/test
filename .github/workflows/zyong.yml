@@ -3,7 +3,7 @@ name: Test and Upload
 on:
   workflow_dispatch:  # Allows manual triggering of the workflow
   schedule:
-    - cron: '34 03 * * *'  # Runs daily at midnight UTC
+    - cron: '34 03 */2 * *'  # Runs daily at midnight UTC
 
 jobs:
   speed_test:
