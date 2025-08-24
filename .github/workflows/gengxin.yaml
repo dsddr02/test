@@ -29,7 +29,7 @@ jobs:
         TEST_URL: ${{ secrets.TEST_URL }}  # 如果是敏感数据，使用 secrets.TEST_URL
       run: |
         set -e
-        ./CloudflareST -f iphome.txt -t 8 -p 0 -sl 1 -n 300 -dd -dn 25 -dt 10 -tp 2087 -tlr 0 -url $TEST_URL -o HKG.csv
+        ./CloudflareST -f iphome.txt -t 8 -p 0 -sl 1 -n 300 -dn 25 -dt 10 -tp 2087 -tlr 0 -url $TEST_URL -o HKG.csv
             python xn.py
 
 
@@ -51,7 +51,7 @@ jobs:
       run: |
         chmod +x upload.sh
         ./upload.sh
-          - name: Update README
+      
     - name: Update README
       run: |
           echo "# Auto-Updated README\n\nLast updated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" > README.md
