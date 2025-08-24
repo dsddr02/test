@@ -1,4 +1,4 @@
-name: Speed Test and Upload
+name: Test and Upload
 
 on:
   workflow_dispatch:  # Allows manual triggering of the workflow
@@ -13,7 +13,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Download ip.txt
+      - name: Download 
         run: |
           wget -O ip.txt 'https://dz.pk67.dpdns.org/ip.txt?token=zf004'
 
@@ -41,6 +41,15 @@ jobs:
         run: |
           chmod +x upload.sh
           ./upload.sh
+      - name: Update README
+        run: |
+          echo "# Auto-Updated README\n\nLast updated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" > README.md
+
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: Auto-update vv [skip ci]"
+          branch: main  # 替换成你的默认分支名
       - name: Clean up Workflow Runs
         uses: Mattraks/delete-workflow-runs@v2
         with:
