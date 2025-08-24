@@ -17,7 +17,7 @@ def csv_to_txtt(csv_filename, output_filename, area_name):
 
     with open(output_filename, 'w', encoding='utf-8') as f:
         for i, (ip, speed) in enumerate(zip(ips, download_speeds)):
-            f.write(f"{ip}:2087↓{speed}\n")
+            f.write(f"{ip}:2087#↓{speed}\n")
             
 csv_to_txt("HKG.csv", "ivv.txt", "xn")
 csv_to_txtt("HKG.csv", "valid_ips.txt", "xn")
