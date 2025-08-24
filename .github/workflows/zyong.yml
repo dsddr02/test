@@ -15,7 +15,7 @@ jobs:
 
       - name: Download 
         run: |
-          wget -O ip.txt "$XZDZ"
+          wget -O ip.txt "${{ secrets.XZDZ }}"
 
       - name: Install Dependencies
         run: |
