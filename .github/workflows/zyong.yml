@@ -35,7 +35,7 @@ jobs:
 
       - name: Upload ivv.txt
         env:
-          DOMAIN: ${{ secrets.DOMAIN }}
+          DOMAIN: ${{ secrets.DOMAIN_TOKEN }}
           TOKEN: ${{ secrets.UPLOAD_TOKEN }}
           FILENAME: ivv.txt
         run: |
