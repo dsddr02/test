@@ -43,13 +43,14 @@ jobs:
           ./upload.sh
       - name: Update README
         run: |
-          echo "# Auto-Updated README\n\nLast updated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" > README.md
+          echo "# Auto-Updated README\n\nLast updated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" > ap.txt
 
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: Auto-update vv [skip ci]"
           branch: main  # 替换成你的默认分支名
+          file_pattern: ap.txt
       - name: Clean up Workflow Runs
         uses: Mattraks/delete-workflow-runs@v2
         with:
