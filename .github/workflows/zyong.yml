@@ -29,7 +29,7 @@ jobs:
         run: |
           set -e
           chmod +x CloudflareST
-          ./CloudflareST -t 8 -sl 1 -n 100 -dn 40 -tp 2087 -tlr 0 -url $TEST_URL -o HKG.csv
+          ./CloudflareST -t 8 -sl 1 -n 100 -dn 40 -tp 2096 -tlr 0 -url $TEST_URL -o HKG.csv
           rm -f ip.txt
           python3 xn.py
 
