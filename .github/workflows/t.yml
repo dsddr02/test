@@ -1,0 +1,16 @@
+name: ttt
+
+on:
+  schedule:
+    - cron: '37 2 * * 5' # 每12小时运行一次
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 显示当前时间
+        run: |
+          echo "UTC 时间: $(date -u)"
+          echo "本地时间: $(date)"
+          echo "时区: $(date +%Z)"
