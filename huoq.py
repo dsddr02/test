@@ -1,5 +1,7 @@
-from playwright.sync_api import sync_playwright
+import os
 import re
+from playwright.sync_api import sync_playwright
+import requests
 import time
 from datetime import datetime
 
