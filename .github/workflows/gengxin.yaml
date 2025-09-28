@@ -35,7 +35,8 @@ jobs:
          CF_RECORD_NAME: ${{ secrets.CF_RECORD_NAME }}
         run: |
           set -e
-          ./CloudflareST -f ip.txt -t 8 -p 0 -sl 1 -n 300 -dt 8 -tp 2087 -tlr 0 -url $TEST_URL -
+          ./CloudflareST -f ip.txt -t 8 -p 0 -sl 1 -n 300 -dn 8 -dt 10 -tp 2087 -tlr 0 -url $TEST_URL
+          
             python huoqdn.py
       - name: Clean up Workflow Runs
         uses: Mattraks/delete-workflow-runs@v2
