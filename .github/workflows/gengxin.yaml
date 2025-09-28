@@ -1,71 +1,44 @@
-name: Update 更新
+name: Update Telecom IPs
 
 on:
   schedule:
-    - cron: '37 2 * * 5' # 每12小时运行一次
-  workflow_dispatch: # 允许手动触发
+    - cron: "37 4 * * *"  # 每10分钟跑一次
+  workflow_dispatch:
 
 jobs:
-
-  update-ip-list:
+  update:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v4
-      
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pandas requests
-  
-   
+      - uses: actions/checkout@v3
 
-    - name: Make script executable
-      run: chmod +x CloudflareST
+      - name: Install dependencies
+        run: |
+          pip install playwright requests
+          playwright install chromium
 
-    - name: cstest
-      env:
-        TEST_URL: ${{ secrets.TEST_URL }}  # 如果是敏感数据，使用 secrets.TEST_URL
-      run: |
-        set -e
-        ./CloudflareST -f iphome.txt -t 8 -p 0 -sl 1 -n 300 -dn 125 -dt 10 -tp 2096 -tlr 0 -url $TEST_URL -o HKG.csv
-            python xn.py
+      - name: Run script
+        env:
+          TARGET_URL: ${{ secrets.TARGET_URL }}
+          
+        run: python huoq.py
+     
 
+      - name: Make script executable
+        run: chmod +x CloudflareST
 
-
-    - name: Upload ivv.txt
-      env:
-        DOMAIN: ${{ secrets.DOMAIN_TOKEN }}
-        TOKEN: ${{ secrets.UPLOAD_TOKEN }}
-        FILENAME: ivv.txt
-      run: |
-        chmod +x upload.sh
-        ./upload.sh
-
-    - name: Upload valid_ips.txt
-      env:
-        DOMAIN: ${{ secrets.DOMAIN_TOKEN }}
-        TOKEN: ${{ secrets.UPLOAD_TOKEN }}
-        FILENAME: valid_ips.txt
-      run: |
-        chmod +x upload.sh
-        ./upload.sh
-      
-    - name: Update README
-      run: |
-          echo "# Auto-Updated README\n\nLast updated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" > README.md
-
-    - name: Commit changes
-      uses: stefanzweifel/git-auto-commit-action@v5
-      with:
-          commit_message: "chore: Auto-update vv [skip ci]"
-          branch: main  # 替换成你的默认分支名
-
-
-    - name: Clean up Workflow Runs
-      uses: Mattraks/delete-workflow-runs@v2
-      with:
+      - name: cstest
+        env:
+         TEST_URL: ${{ secrets.TEST_URL }}  # 如果是敏感数据，使用 secrets.TEST_URL
+         CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+         CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+         CF_RECORD_NAME: ${{ secrets.CF_RECORD_NAME }}
+        run: |
+          set -e
+          ./CloudflareST -f ip.txt -t 8 -p 0 -sl 1 -n 300 -dt 8 -tp 2087 -tlr 0 -url $TEST_URL -
+            python huoqdn.py
+      - name: Clean up Workflow Runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
          #token: ${{ secrets.GITHUB_TOKEN }}
          token: ${{ secrets.PAT_TOKEN }}
          
