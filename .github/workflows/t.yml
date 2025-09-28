@@ -1,16 +1,25 @@
-name: ttt
+name: Update Telecom IPs
 
 on:
   schedule:
-    - cron: '37 2 * * 5' # 每12小时运行一次
-  workflow_dispatch: # 允许手动触发
+    - cron: "*/10 * * * *"  # 每10分钟跑一次
+  workflow_dispatch:
 
 jobs:
-  test:
+  update:
     runs-on: ubuntu-latest
     steps:
-      - name: 显示当前时间
+      - uses: actions/checkout@v3
+
+      - name: Install dependencies
         run: |
-          echo "UTC 时间: $(date -u)"
-          echo "本地时间: $(date)"
-          echo "时区: $(date +%Z)"
+          pip install playwright requests
+          playwright install chromium
+
+      - name: Run script
+        env:
+          TARGET_URL: ${{ secrets.TARGET_URL }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+          CF_RECORD_NAME: ${{ secrets.CF_RECORD_NAME }}
+        run: python ad.py
