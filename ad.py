@@ -36,10 +36,10 @@ def get_telecom_ips():
             f.write(ip + "\n")
 
     print(f"成功提取 {len(unique_ips)} 个电信IP地址，已保存到 ip.txt")
-    for ip in unique_ips:
-        print(" -", ip)
+   # for ip in unique_ips:
+        # print(" -", ip)
 
-    return unique_ips
+   # return unique_ips
 
 
 def update_cloudflare_dns(ip_list):
@@ -75,13 +75,13 @@ def update_cloudflare_dns(ip_list):
             "type": "A",
             "name": record_name,
             "content": ip,
-            "ttl": 300,     # 5分钟
+            "ttl": 60,     # 5分钟
             "proxied": False,  # 如果你要走CF代理，可以改成 True
         }
         add_url = f"https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records"
         resp = requests.post(add_url, headers=headers, json=data).json()
         if resp["success"]:
-            print(f"✅ 已添加 {record_name} -> {ip}")
+            print(f"✅ 已添加 ")
         else:
             print(f"❌ 添加失败: {ip}, {resp}")
 
