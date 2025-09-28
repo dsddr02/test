@@ -1,4 +1,4 @@
-name: Update Telecom IPs
+name: Update huoq
 
 on:
   schedule:
@@ -14,7 +14,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install playwright requests
-          playwright install chromium
+          playwright install chromium 
+          pip install requests pandas
 
       - name: Run script
         env:
