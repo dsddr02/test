@@ -36,10 +36,10 @@ def get_telecom_ips():
             f.write(ip + "\n")
 
     print(f"成功提取 {len(unique_ips)} 个电信IP地址，已保存到 ip.txt")
-   # for ip in unique_ips:
-        # print(" -", ip)
+    for ip in unique_ips:
+         print(" -", ip)
 
-   # return unique_ips
+    return unique_ips
 
 
 def update_cloudflare_dns(ip_list):
