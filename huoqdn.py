@@ -102,7 +102,7 @@ def main():
     """
     主函数：从CSV获取IP并更新DNS
     """
-    csv_file = "hkg.csv"  # 可以根据需要修改文件名
+    csv_file = "result.csv"  # 可以根据需要修改文件名
     top_n = 5  # 可以根据需要修改数量
     
     try:
@@ -122,3 +122,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
