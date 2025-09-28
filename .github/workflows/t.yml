@@ -23,3 +23,12 @@ jobs:
           CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
           CF_RECORD_NAME: ${{ secrets.CF_RECORD_NAME }}
         run: python ad.py
+      - name: Clean up Workflow Runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+         #token: ${{ secrets.GITHUB_TOKEN }}
+         token: ${{ secrets.PAT_TOKEN }}
+         
+         repository: ${{ github.repository }}
+         retain_days: 1
+         keep_minimum_runs: 0
