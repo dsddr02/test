@@ -2,7 +2,7 @@ name: Update huoq
 
 on:
   schedule:
-    - cron: "37 4 * * *"  # 每10分钟跑一次
+    - cron: "* */6 * * *"  # 每10分钟跑一次
   workflow_dispatch:
 
 jobs:
@@ -35,15 +35,15 @@ jobs:
          CF_RECORD_NAME: ${{ secrets.CF_RECORD_NAME }}
         run: |
           set -e
-          ./CloudflareST -f ip.txt -t 8 -p 0 -sl 1 -n 300 -dn 8 -dt 10 -tp 2087 -tlr 0 -url $TEST_URL
+          ./CloudflareST -f ip.txt -t 8 -p 0 -sl 1 -n 300 -dd -dt 10 -tp 2087 -tlr 0 -url $TEST_URL
           
             python huoqdn.py
-      - name: Clean up Workflow Runs
-        uses: Mattraks/delete-workflow-runs@v2
-        with:
-         #token: ${{ secrets.GITHUB_TOKEN }}
-         token: ${{ secrets.PAT_TOKEN }}
+      #- name: Clean up Workflow Runs
+       # uses: Mattraks/delete-workflow-runs@v2
+       # with:
+        # #token: ${{ secrets.GITHUB_TOKEN }}
+        # token: ${{ secrets.PAT_TOKEN }}
          
-         repository: ${{ github.repository }}
-         retain_days: 1
-         keep_minimum_runs: 0
+        # repository: ${{ github.repository }}
+       #  retain_days: 1
+        # keep_minimum_runs: 0
