@@ -1,0 +1,56 @@
+name: Update huoq
+
+on:
+  schedule:
+    - cron: "* */6 * * *"  # 每10分钟跑一次
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          pip install playwright requests
+          playwright install chromium 
+          pip install requests pandas
+
+      - name: Run script
+        env:
+          TARGET_URL: ${{ secrets.TARGET_URL }}
+          
+        run: python huoq.py
+     
+
+      - name: Make script executable
+        run: chmod +x CloudflareST
+
+      - name: cstest
+        env:
+         TEST_URL: ${{ secrets.TEST_URL }}  # 如果是敏感数据，使用 secrets.TEST_URL
+        
+        run: |
+          set -e
+          ./CloudflareST -f ip.txt -t 8 -p 0 -sl 1 -n 300 -dd -dt 10 -tp 2087 -tlr 0 -url $TEST_URL
+            python yd.py
+      - name: Commit changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          if [ -n "$(git status --porcelain)" ]; then
+            git add yd.txt
+            git commit -m "Automatic update"
+            git push
+          else
+           echo "No changes detected, skipping commit."
+          fi
+          
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}
+            
+            
