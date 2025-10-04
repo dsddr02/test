@@ -19,5 +19,5 @@ def csv_to_txtt(csv_filename, output_filename, area_name):
         for i, (ip, speed) in enumerate(zip(ips, download_speeds)):
             f.write(f"{ip}:2087#{area_name}{i+1}↓{speed}MB/s\n")
             
-csv_to_txt("HKG.csv", "yd.txt", "xn")
-csv_to_txtt("HKG.csv", "valid_ipsyd.txt", "xn")
+csv_to_txt("result.csv", "yd.txt", "xn")
+csv_to_txtt("result.csv", "valid_ipsyd.txt", "xn")
