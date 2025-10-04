@@ -44,12 +44,14 @@ def get_telecom_ips():
         print("抓取到的行数:", len(rows))
 
         for row in rows:
+            if len(telecom_ips) >= 40:  # 已经收集够40个就退出
+                break
             cells = row.query_selector_all("th, td")
             if len(cells) >= 3:
                 isp = cells[1].inner_text().strip()
                 ip = cells[2].inner_text().strip()
                 print("调试行:", isp, ip)  # 调试用
-                if isp == "移动" and re.match(ip_pattern, ip):
+                #if isp == "移动" and re.match(ip_pattern, ip):
                     telecom_ips.append(ip)
 
         browser.close()
