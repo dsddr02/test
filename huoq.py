@@ -52,6 +52,7 @@ def get_telecom_ips():
                 ip = cells[2].inner_text().strip()
                 print("调试行:", isp, ip)  # 调试用
                 #if isp == "移动" and re.match(ip_pattern, ip):
+                if re.match(ip_pattern, ip):
                     telecom_ips.append(ip)
 
         browser.close()
