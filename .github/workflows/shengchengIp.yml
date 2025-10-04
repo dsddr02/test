@@ -2,7 +2,7 @@ name: Update shengcengbucesu
 
 on:
   schedule:
-    - cron: "* */6 * * *"  # 每10分钟跑一次
+    - cron: "13 */6 * * *"  # 每10分钟跑一次
   workflow_dispatch:
 
 jobs:
