@@ -33,7 +33,7 @@ jobs:
         
         run: |
           set -e
-          ./CloudflareST -f ip.txt -t 8 -p 0 -sl 1 -n 300 -dd -dt 40 -tp 2087 -tlr 0 -url $TEST_URL
+          ./CloudflareST -f ip.txt -t 8 -p 0 -sl 1 -n 300 -dd  -tp 2087 -tlr 0 -url $TEST_URL
             python yd.py
       - name: Commit changes
         run: |
