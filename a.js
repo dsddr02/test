@@ -1,234 +1,119 @@
-require('dotenv').config();
-const process = require('process');
-const username = process.env.WEB_USERNAME || "admin";
-const password = process.env.WEB_PASSWORD || "password";
-const UUID = process.env.UUID || "de04add9-5c68-8bab-950c-08cd5320df18";
-const os = require('os');
-const path = require('path');
-const express = require("express");
-const fs = require('fs');
-const { exec } = require('child_process');
-const crypto = require('crypto');
-const auth = require("basic-auth");
-
-const app = express();
-
-const csrfTokens = new Set();
-
-function generateCSRFToken() {
-    return crypto.randomBytes(16).toString('hex');
+import { connect } from 'cloudflare:sockets';
+const AUTH_UUID = "2523c510-9ff0-415b-9582-93949bfae7e3";
+export default {
+  async fetch(req) {
+    if (req.headers.get('Upgrade') !== 'websocket') return new Response('Hello World!', { status: 200 });
+    const u = new URL(req.url); let proxyIPConfig = null;
+    if (u.pathname.includes('/proxyip=')) {
+      const proxyParam = u.pathname.split('/proxyip=')[1].split('/')[0];
+      const [address, port = 443] = parseAddressPort(proxyParam);
+      proxyIPConfig = { address, port: +port }; }
+    const { 0: client, 1: server } = new WebSocketPair();
+    server.accept(); server.send(new Uint8Array([0, 0]));
+    handleConnection(server, proxyIPConfig);
+    return new Response(null, { status: 101, webSocket: client }); }
+};
+function buildUUID(arr, start) { return Array.from(arr.slice(start, start + 16)).map(n => n.toString(16).padStart(2, '0')).join('').replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5'); }
+const extractAddress = b => {
+  const o1 = 18 + b[17] + 1, p = (b[o1] << 8) | b[o1 + 1], t = b[o1 + 2]; let o2 = o1 + 3, h, l;
+  switch (t) {
+    case 1: l = 4; h = b.slice(o2, o2 + l).join('.'); break;
+    case 2: l = b[o2++]; h = new TextDecoder().decode(b.slice(o2, o2 + l)); break;
+    case 3: l = 16; h = `[${Array.from({ length: 8 }, (_, i) => ((b[o2 + i * 2] << 8) | b[o2 + i * 2 + 1]).toString(16)).join(':')}]`; break;
+    default: throw new Error('Invalid address type.');
+  } return { host: h, port: p, payload: b.slice(o2 + l) };
+};
+function parseAddressPort(addressSegment) {
+  let address, port;
+  if (addressSegment.startsWith('[')) {
+    const [ipv6Address, portStr = 443] = addressSegment.slice(1, -1).split(']:');
+    address = `[${ipv6Address}]`; port = portStr;
+  } else { [address, port = 443] = addressSegment.split(':'); } return [address, port];
 }
-
-function validateCSRFToken(req, res, next) {
-    const token = req.headers['csrf-token'];
-    if (csrfTokens.has(token)) {
-        csrfTokens.delete(token); 
-        next();
-    } else {
-        res.status(403).send('无效的CSRF令牌');
-    }
+function getConnectionOrder(proxyIPConfig) {
+  const order = ['direct'];
+  if (proxyIPConfig) order.push('proxy'); return order;
 }
-
-app.use(express.json());
-
-app.use((req, res, next) => {
-    const user = auth(req);
-
-    if (req.path === '/info' || req.path.startsWith(`/${UUID}`)) {
-        return next();
-    }
-
-    if (user && user.name === username && user.pass === password) {
-        return next();
-    }
-    res.set("WWW-Authenticate", 'Basic realm="Node"');
-    return res.status(401).send();
-});
-
-const USERNAME = os.userInfo().username;
-const USERNAME_DOMAIN = USERNAME.toLowerCase().replace(/[^a-z0-9-]/g, '');
-const WORKDIR = path.join('/home', USERNAME, 'domains', `${USERNAME_DOMAIN}.serv00.net`, 'public_nodejs');
-process.chdir(WORKDIR);
-
-app.get("/info", function (req, res) {
-    res.type("html").send("<pre>Powered by X-for-Serv00\nAuthor: <a href='https://github.com/k0baya'>K0baya</a>" + "</pre>");
-});
-
-app.get(`/${UUID}/sub`, function (req, res) {
-    let cmdStr = "cat sub";
-    exec(cmdStr, function (err, stdout, stderr) {
-        if (err) {
-            res.type("html").send("<pre>命令行执行错误：\n" + err + "</pre>");
-        } else {
-            res.send(stdout);
-        }
-    });
-});
-
-app.get("/status", function (req, res) {
-    let cmdStr = "ps aux";
-    exec(cmdStr, function (err, stdout, stderr) {
-        if (err) {
-            res.type("html").send("<pre>命令行执行错误：\n" + err + "</pre>");
-        } else {
-            res.type("html").send("<pre>获取系统进程表：\n" + stdout + "</pre>");
-        }
-    });
-});
-
-app.get("/list", async function (req, res) {
-    let cmdStr = "cat list";
-    const fileExists = (path) => {
-        return new Promise((resolve, reject) => {
-            fs.access(path, fs.constants.F_OK, (err) => {
-                resolve(!err);
-            });
-        });
-    };
-
-    const waitForFile = async (path, retries, interval) => {
-        for (let i = 0; i < retries; i++) {
-            if (await fileExists(path)) {
-                return true;
-            }
-            await new Promise(resolve => setTimeout(resolve, interval));
-        }
-        return false;
-    };
-
-    const fileReady = await waitForFile('list', 30, 1000);
-
-    if (!fileReady) {
-        res.type("html").send("<pre>文件未生成</pre>");
-        return;
-    }
-
-    exec(cmdStr, function (err, stdout, stderr) {
-        if (err) {
-            res.type("html").send("<pre>命令行执行错误：\n" + err + "</pre>");
-        } else {
-            const fullUrl = `${req.protocol}://${req.get('host')}/${UUID}/sub`;
-            res.type("html").send("<pre>订阅地址：" + fullUrl + "\n\n节点数据：\n\n" + stdout + "</pre>");
-        }
-    });
-});
-
-app.get('/control', (req, res) => {
-    const csrfToken = generateCSRFToken();
-    csrfTokens.add(csrfToken);
-    
-    const htmlContent = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Control</title>
-        <style>
-            button {
-                margin: 20px;
-                padding: 10px 20px;
-                font-size: 16px;
-            }
-        </style>
-    </head>
-    <body>
-        <h1>Control Panel</h1>
-        <button onclick="restart()">Restart</button>
-        <button onclick="uninstall()">Uninstall</button>
-
-        <script>
-            const csrfToken = '${csrfToken}';
-
-            function restart() {
-                fetch('/restart', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'CSRF-Token': csrfToken
-                    },
-                    body: JSON.stringify({ action: 'restart' })
-                })
-                .then(response => response.text())
-                .then(message => alert(message))
-                .catch(error => console.error('Error:', error));
-            }
-
-            function uninstall() {
-                fetch('/uninstall', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'CSRF-Token': csrfToken
-                    },
-                    body: JSON.stringify({ action: 'uninstall' })
-                })
-                .then(response => response.text())
-                .then(message => alert(message))
-                .catch(error => console.error('Error:', error));
-            }
-        </script>
-    </body>
-    </html>
-    `;
-    res.type('html').send(htmlContent);
-});
-
-app.post('/restart', validateCSRFToken, (req, res) => {
-    exec('killall -u $(whoami)', (error, stdout, stderr) => {
-        if (error) {
-            console.error(`执行命令错误: ${error}`);
-            return res.status(500).send('重启失败，请检查服务器日志。');
-        }
-        res.send('已经成功重启，请刷新页面。');
-    });
-});
-
-app.post('/uninstall', validateCSRFToken, (req, res) => {
-    const cleanupCmd = `find . -mindepth 1 -maxdepth 1 ! -name 'public' ! -name 'tmp' -exec rm -rf {} + && killall -u $(whoami)`;
-    exec(cleanupCmd, { cwd: WORKDIR }, (error, stdout, stderr) => {
-        if (error) {
-            console.error(`执行命令错误: ${error}`);
-            return res.status(500).send('删除失败，请检查服务器日志。');
-        }
-        res.send('已成功卸载，请刷新页面。');
-    });
-});
-
-function keep_web_alive() {
-    exec("pgrep -laf x.js", function (err, stdout, stderr) {
-        if (stdout.includes("./x.js -c ./config.json")) {
-            console.log("web 正在运行");
-        } else {
-            exec(
-                "chmod +x x.js && ./x.js -c ./config.json > /dev/null 2>&1 &",
-                function (err, stdout, stderr) {
-                    if (err) {
-                        console.log("保活-调起web-命令行执行错误:" + err);
-                    } else {
-                        console.log("保活-调起web-命令行执行成功!");
-                    }
-                }
-            );
-        }
-    });
+function handleConnection(ws, proxyIPConfig) {
+  let socket, writer, reader, info;
+  let isFirstMsg = true, bytesReceived = 0, stallCount = 0, reconnectCount = 0;
+  let lastData = Date.now(); const timers = {}; const dataBuffer = [];
+  const KEEPALIVE = 15000, STALL_TIMEOUT = 8000, MAX_STALL = 12, MAX_RECONNECT = 24;
+  async function processHandshake(data) {
+    const bytes = new Uint8Array(data);
+    if (buildUUID(bytes, 1) !== AUTH_UUID) throw new Error('Auth failed');
+    const { host, port, payload } = extractAddress(bytes);
+    const connectionOrder = getConnectionOrder(proxyIPConfig);
+    let sock, connectionSuccessful = false;
+    for (const method of connectionOrder) {
+      try {
+        sock = connect(method === 'direct' ? { hostname: host, port } : { hostname: proxyIPConfig.address, port: proxyIPConfig.port });
+        await sock.opened; connectionSuccessful = true; break;
+      } catch { continue; }}
+    if (!connectionSuccessful) throw new Error('All connection methods failed'); const w = sock.writable.getWriter();
+    if (payload.length) await w.write(payload); return { socket: sock, writer: w, reader: sock.readable.getReader(), info: { host, port } };
+  }
+  async function readLoop() {
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (value?.length) {
+          bytesReceived += value.length; lastData = Date.now();
+          stallCount = reconnectCount = 0;
+          if (ws.readyState === 1) {
+            await ws.send(value);
+            while (dataBuffer.length && ws.readyState === 1) { await ws.send(dataBuffer.shift()); }
+          } else { dataBuffer.push(value); }}
+        if (done) { ws.send('Stream ended gracefully'); await reconnect(); break;}}
+    } catch (err) {
+      if (err.message.includes('reset') || err.message.includes('broken')) {
+        ws.send('Server closed connection, attempting reconnect'); await reconnect();
+      } else { cleanup(); ws.close(1006, 'Connection abnormal'); }}
+  }
+  async function reconnect() {
+    if (!info || ws.readyState !== 1 || reconnectCount >= MAX_RECONNECT) {
+      cleanup(); ws.close(1011, 'Reconnection failed'); return;}
+    reconnectCount++; ws.send(`Reconnecting (attempt ${reconnectCount})...`);
+    try { cleanupSocket();
+      await new Promise(resolve => setTimeout(resolve, 30 * Math.pow(2, reconnectCount) + Math.random() * 5));
+      const connectionOrder = getConnectionOrder(proxyIPConfig); let sock, connectionSuccessful = false;
+      for (const method of connectionOrder) {
+        try {
+          sock = connect(method === 'direct' ? { hostname: info.host, port: info.port } : { hostname: proxyIPConfig.address, port: proxyIPConfig.port });
+          await sock.opened; connectionSuccessful = true; break;
+        } catch { continue; }}
+      if (!connectionSuccessful) throw new Error('All reconnect methods failed');
+      socket = sock; writer = sock.writable.getWriter(); reader = sock.readable.getReader(); lastData = Date.now(); stallCount = 0; ws.send('Reconnected successfully');
+      while (dataBuffer.length && ws.readyState === 1) { await writer.write(dataBuffer.shift()); } readLoop();
+    } catch { setTimeout(reconnect, 1000); }
+  }
+  function startTimers() {
+    timers.keepalive = setInterval(async () => {
+      if (Date.now() - lastData > KEEPALIVE) {
+        try {
+          await writer.write(new Uint8Array(0)); lastData = Date.now();
+        } catch { reconnect();}}}, KEEPALIVE / 3);
+    timers.health = setInterval(() => {
+      if (bytesReceived && Date.now() - lastData > STALL_TIMEOUT) {
+        stallCount++; ws.send(`Stall detected (${stallCount}/${MAX_STALL}), ${Date.now() - lastData}ms since last data`);
+        if (stallCount >= MAX_STALL) reconnect();}}, STALL_TIMEOUT / 2);
+  }
+  function cleanupSocket() {
+    try { writer?.releaseLock(); reader?.releaseLock(); socket?.close(); } catch {}
+  }
+  function cleanup() {
+    Object.values(timers).forEach(clearInterval); cleanupSocket();
+  }
+  ws.addEventListener('message', async evt => {
+    try {
+      if (isFirstMsg) {
+        isFirstMsg = false;
+        ({ socket, writer, reader, info } = await processHandshake(evt.data));
+        startTimers(); readLoop();
+      } else {
+        lastData = Date.now();
+        if (socket && writer) { await writer.write(evt.data);
+        } else { dataBuffer.push(evt.data);}}
+    } catch { cleanup(); ws.close(1006, 'Connection abnormal'); }
+  }); ws.addEventListener('close', cleanup); ws.addEventListener('error', cleanup);
 }
-setInterval(keep_web_alive, 10 * 1000);
-
-function keep_argo_alive() {
-    exec("pgrep -laf cld", function (err, stdout, stderr) {
-        if (stdout.includes("./cld tunnel")) {
-            console.log("Argo 正在运行");
-        } else {
-            exec("chmod +x ar.sh && bash ar.sh 2>&1 &", function (err, stdout, stderr) {
-                if (err) {
-                    console.log("保活-调起Argo-命令行执行错误:" + err);
-                } else {
-                    console.log("保活-调起Argo-命令行执行成功!");
-                }
-            });
-        }
-    });
-}
-setInterval(keep_argo_alive, 30 * 1000);
-
