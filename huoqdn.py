@@ -25,7 +25,7 @@ def get_top_ips_from_csv(csv_file: str, top_n: int = 5) -> List[str]:
                 raise ValueError(f"CSV文件中缺少必要的列: {col}")
         
         # 按平均延迟排序，取前top_n个
-        df_sorted = df.sort_values('下载速度').head(top_n)
+        df_sorted = df.sort_values('下载速度度(MB/s)').head(top_n)
         
         # 提取IP地址列表
         ip_list = df_sorted['IP 地址'].tolist()
@@ -122,6 +122,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
