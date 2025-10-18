@@ -3,7 +3,7 @@ name: Config Update
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 18 * * *'
+    - cron: '0 18 */3 * *'
 
 jobs:
   build:
@@ -49,3 +49,12 @@ jobs:
           git commit -m "Update rules"
           git push
         fi
+    - name: Clean up Workflow Runs
+      uses: Mattraks/delete-workflow-runs@v2
+      with:
+         #token: ${{ secrets.GITHUB_TOKEN }}
+         token: ${{ secrets.PAT_TOKEN }}
+         
+         repository: ${{ github.repository }}
+         retain_days: 1
+         keep_minimum_runs: 0
