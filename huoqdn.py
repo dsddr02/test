@@ -19,7 +19,7 @@ def get_top_ips_from_csv(csv_file: str, top_n: int = 5) -> List[str]:
         df = pd.read_csv(csv_file)
         
         # 确保必要的列存在
-        required_columns = ['IP 地址', '下载速度']
+        required_columns = ['IP 地址', '下载速度(MB/s)']
         for col in required_columns:
             if col not in df.columns:
                 raise ValueError(f"CSV文件中缺少必要的列: {col}")
@@ -122,5 +122,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
