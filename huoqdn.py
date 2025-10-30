@@ -24,15 +24,16 @@ def get_top_ips_from_csv(csv_file: str, top_n: int = 5) -> List[str]:
             if col not in df.columns:
                 raise ValueError(f"CSV文件中缺少必要的列: {col}")
         
-        # 按平均延迟排序，取前top_n个
-        df_sorted = df.sort_values('下载速度(MB/s)').head(top_n)
+        # 按下载速度排序，取前top_n个（下载速度越大越好）
+        df_sorted = df.sort_values('下载速度(MB/s)', ascending=False).head(top_n)
         
         # 提取IP地址列表
         ip_list = df_sorted['IP 地址'].tolist()
         
-        print(f"从 {csv_file} 中获取到前 {top_n} 个最低延迟的IP:")
-        for ip in ip_list:
-            print(f"  - {ip}")
+        print(f"从 {csv_file} 中获取到前 {top_n} 个下载速度最快的IP:")
+        for i, ip in enumerate(ip_list):
+            speed = df_sorted.iloc[i]['下载速度(MB/s)']
+            print(f"  {i+1}. {ip} (速度: {speed} MB/s)")
         
         return ip_list
         
@@ -62,14 +63,14 @@ def parse_record_names(record_names_str: str) -> List[str]:
     record_names = [name.strip() for name in record_names if name.strip()]
     
     print(f"解析到 {len(record_names)} 个域名记录:")
-    for name in record_names:
-        print(f"  - {name}")
+    for i, name in enumerate(record_names):
+        print(f"  {i+1}. {name}")
     
     return record_names
 
 def update_cloudflare_dns(ip_list: List[str]) -> None:
     """
-    更新Cloudflare DNS记录
+    更新Cloudflare DNS记录，每个域名匹配一个IP
     
     Args:
         ip_list: IP地址列表
@@ -95,12 +96,26 @@ def update_cloudflare_dns(ip_list: List[str]) -> None:
         print("⚠️ 没有获取到新的 IP，本次跳过更新，保留现有 DNS 配置")
         return
 
-    # 为每个记录名清理旧记录并添加新记录
+    # 检查域名和IP数量是否匹配
+    if len(record_names) > len(ip_list):
+        print(f"⚠️ 警告: 域名数量({len(record_names)})多于IP数量({len(ip_list)})，部分域名将无法分配IP")
+    elif len(ip_list) > len(record_names):
+        print(f"ℹ️ 信息: IP数量({len(ip_list)})多于域名数量({len(record_names)})，将使用前{len(record_names)}个IP")
+
+    # 取最小数量，确保每个域名都能匹配到一个IP
+    min_count = min(len(record_names), len(ip_list))
+    matched_domains = record_names[:min_count]
+    matched_ips = ip_list[:min_count]
+
+    print(f"\n🔗 域名与IP匹配关系:")
+    for i, (domain, ip) in enumerate(zip(matched_domains, matched_ips)):
+        print(f"  {i+1}. {domain} -> {ip}")
+
+    # 为每个域名清理旧记录并添加新记录
     total_success = 0
-    total_records = len(record_names) * len(ip_list)
     
-    for record_name in record_names:
-        print(f"\n🔄 正在处理域名: {record_name}")
+    for i, (record_name, ip) in enumerate(zip(matched_domains, matched_ips)):
+        print(f"\n🔄 正在处理域名 {i+1}/{min_count}: {record_name}")
         
         # 先获取该域名的现有记录，全部删除
         url = f"https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records?name={record_name}"
@@ -119,30 +134,33 @@ def update_cloudflare_dns(ip_list: List[str]) -> None:
                     print(f"  ❌ 删除旧记录失败: {record['name']}")
             print(f"  📝 已清理 {deleted_count} 条旧的 DNS 记录: {record_name}")
 
-        # 为该域名新建多条 A 记录
-        success_count = 0
-        for ip in ip_list:
-            data = {
-                "type": "A",
-                "name": record_name,
-                "content": ip,
-                "ttl": 300,     # 5分钟
-                "proxied": False,  # 如果你要走CF代理，可以改成 True
-            }
-            add_url = f"https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records"
-            resp = requests.post(add_url, headers=headers, json=data).json()
-            if resp["success"]:
-                print(f"  ✅ 已添加 DNS 记录: {record_name} -> {ip}")
-                success_count += 1
-                total_success += 1
-            else:
-                print(f"  ❌ 添加失败: {record_name} -> {ip}, 错误: {resp.get('errors', '未知错误')}")
+        # 为该域名新建单条 A 记录
+        data = {
+            "type": "A",
+            "name": record_name,
+            "content": ip,
+            "ttl": 300,     # 5分钟
+            "proxied": False,  # 如果你要走CF代理，可以改成 True
+        }
+        add_url = f"https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records"
+        resp = requests.post(add_url, headers=headers, json=data).json()
+        if resp["success"]:
+            print(f"  ✅ 已添加 DNS 记录: {record_name} -> {ip}")
+            total_success += 1
+        else:
+            print(f"  ❌ 添加失败: {record_name} -> {ip}, 错误: {resp.get('errors', '未知错误')}")
 
-        print(f"  📊 域名 {record_name} 更新完成: 成功添加 {success_count}/{len(ip_list)} 条记录")
-
-    print(f"\n🎯 所有域名 DNS 更新完成!")
-    print(f"📈 总计: 成功添加 {total_success}/{total_records} 条记录")
-    print(f"🌐 涉及域名: {', '.join(record_names)}")
+    print(f"\n🎯 DNS 更新完成!")
+    print(f"📈 成功更新: {total_success}/{min_count} 条记录")
+    
+    # 显示未使用的资源
+    if len(record_names) > min_count:
+        unused_domains = record_names[min_count:]
+        print(f"⚠️ 未使用的域名: {', '.join(unused_domains)}")
+    
+    if len(ip_list) > min_count:
+        unused_ips = ip_list[min_count:]
+        print(f"ℹ️ 未使用的IP: {', '.join(unused_ips)}")
 
 def main():
     """
