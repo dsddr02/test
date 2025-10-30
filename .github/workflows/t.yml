@@ -2,7 +2,7 @@ name: Update guding
 
 on:
   schedule:
-    - cron: "0 */6 * * *"  # 每10分钟跑一次
+    - cron: "0 */12 * * *"  # 每10分钟跑一次
   workflow_dispatch:
 
 jobs:
