@@ -2,7 +2,7 @@ name: Update huoq
 
 on:
   schedule:
-    - cron: "38 */3 * * *"  # 每10分钟跑一次
+    - cron: "38 */12 * * *"  # 每10分钟跑一次
   workflow_dispatch:
 
 jobs:
