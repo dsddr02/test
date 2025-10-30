@@ -41,6 +41,32 @@ def get_top_ips_from_csv(csv_file: str, top_n: int = 5) -> List[str]:
     except Exception as e:
         raise Exception(f"读取CSV文件时出错: {e}")
 
+def parse_record_names(record_names_str: str) -> List[str]:
+    """
+    解析记录名字符串，支持逗号、分号、空格分隔
+    
+    Args:
+        record_names_str: 记录名字符串
+    
+    Returns:
+        记录名列表
+    """
+    if not record_names_str:
+        return []
+    
+    # 支持多种分隔符：逗号、分号、空格
+    import re
+    record_names = re.split(r'[,\s;]+', record_names_str.strip())
+    
+    # 过滤空字符串
+    record_names = [name.strip() for name in record_names if name.strip()]
+    
+    print(f"解析到 {len(record_names)} 个域名记录:")
+    for name in record_names:
+        print(f"  - {name}")
+    
+    return record_names
+
 def update_cloudflare_dns(ip_list: List[str]) -> None:
     """
     更新Cloudflare DNS记录
@@ -50,10 +76,15 @@ def update_cloudflare_dns(ip_list: List[str]) -> None:
     """
     cf_token = os.environ.get("CF_API_TOKEN")
     zone_id = os.environ.get("CF_ZONE_ID")
-    record_name = os.environ.get("CF_RECORD_NAME")
+    record_names_str = os.environ.get("CF_RECORD_NAME", "")
 
-    if not (cf_token and zone_id and record_name):
+    if not (cf_token and zone_id and record_names_str):
         raise ValueError("缺少 CF_API_TOKEN / CF_ZONE_ID / CF_RECORD_NAME 环境变量")
+
+    # 解析多个记录名
+    record_names = parse_record_names(record_names_str)
+    if not record_names:
+        raise ValueError("CF_RECORD_NAME 环境变量中没有有效的域名记录")
 
     headers = {
         "Authorization": f"Bearer {cf_token}",
@@ -64,39 +95,54 @@ def update_cloudflare_dns(ip_list: List[str]) -> None:
         print("⚠️ 没有获取到新的 IP，本次跳过更新，保留现有 DNS 配置")
         return
 
-    # 先获取现有记录，全部删除
-    url = f"https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records?name={record_name}"
-    resp = requests.get(url, headers=headers).json()
-    if resp["success"] and resp["result"]:
-        for record in resp["result"]:
-            record_id = record["id"]
-            del_url = f"https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records/{record_id}"
-            delete_resp = requests.delete(del_url, headers=headers).json()
-            if delete_resp["success"]:
-                print(f"✅ 已删除旧记录: {record['name']} -> {record['content']}")
+    # 为每个记录名清理旧记录并添加新记录
+    total_success = 0
+    total_records = len(record_names) * len(ip_list)
+    
+    for record_name in record_names:
+        print(f"\n🔄 正在处理域名: {record_name}")
+        
+        # 先获取该域名的现有记录，全部删除
+        url = f"https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records?name={record_name}"
+        resp = requests.get(url, headers=headers).json()
+        
+        deleted_count = 0
+        if resp["success"] and resp["result"]:
+            for record in resp["result"]:
+                record_id = record["id"]
+                del_url = f"https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records/{record_id}"
+                delete_resp = requests.delete(del_url, headers=headers).json()
+                if delete_resp["success"]:
+                    print(f"  ✅ 已删除旧记录: {record['name']} -> {record['content']}")
+                    deleted_count += 1
+                else:
+                    print(f"  ❌ 删除旧记录失败: {record['name']}")
+            print(f"  📝 已清理 {deleted_count} 条旧的 DNS 记录: {record_name}")
+
+        # 为该域名新建多条 A 记录
+        success_count = 0
+        for ip in ip_list:
+            data = {
+                "type": "A",
+                "name": record_name,
+                "content": ip,
+                "ttl": 300,     # 5分钟
+                "proxied": False,  # 如果你要走CF代理，可以改成 True
+            }
+            add_url = f"https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records"
+            resp = requests.post(add_url, headers=headers, json=data).json()
+            if resp["success"]:
+                print(f"  ✅ 已添加 DNS 记录: {record_name} -> {ip}")
+                success_count += 1
+                total_success += 1
             else:
-                print(f"❌ 删除旧记录失败: {record['name']}")
-        print(f"已清理旧的 DNS 记录: {record_name}")
+                print(f"  ❌ 添加失败: {record_name} -> {ip}, 错误: {resp.get('errors', '未知错误')}")
 
-    # 新建多条 A 记录
-    success_count = 0
-    for ip in ip_list:
-        data = {
-            "type": "A",
-            "name": record_name,
-            "content": ip,
-            "ttl": 300,     # 5分钟
-            "proxied": False,  # 如果你要走CF代理，可以改成 True
-        }
-        add_url = f"https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records"
-        resp = requests.post(add_url, headers=headers, json=data).json()
-        if resp["success"]:
-            print(f"✅ 已添加 DNS 记录: {record_name} -> {ip}")
-            success_count += 1
-        else:
-            print(f"❌ 添加失败: {ip}, 错误: {resp.get('errors', '未知错误')}")
+        print(f"  📊 域名 {record_name} 更新完成: 成功添加 {success_count}/{len(ip_list)} 条记录")
 
-    print(f"\n📊 DNS 更新完成: 成功添加 {success_count}/{len(ip_list)} 条记录")
+    print(f"\n🎯 所有域名 DNS 更新完成!")
+    print(f"📈 总计: 成功添加 {total_success}/{total_records} 条记录")
+    print(f"🌐 涉及域名: {', '.join(record_names)}")
 
 def main():
     """
@@ -122,7 +168,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
