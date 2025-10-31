@@ -19,21 +19,21 @@ def get_top_ips_from_csv(csv_file: str, top_n: int = 5) -> List[str]:
         df = pd.read_csv(csv_file)
         
         # 确保必要的列存在
-        required_columns = ['IP 地址', '下载速度(MB/s)']
+        required_columns = ['IP 地址', '平均延迟']
         for col in required_columns:
             if col not in df.columns:
                 raise ValueError(f"CSV文件中缺少必要的列: {col}")
         
-        # 按下载速度排序，取前top_n个（下载速度越大越好）
-        df_sorted = df.sort_values('下载速度(MB/s)', ascending=False).head(top_n)
+        # 按平均延迟排序，取前top_n个（延迟越低越好）
+        df_sorted = df.sort_values('平均延迟', ascending=True).head(top_n)
         
         # 提取IP地址列表
         ip_list = df_sorted['IP 地址'].tolist()
         
-        print(f"从 {csv_file} 中获取到前 {top_n} 个下载速度最快的IP:")
+        print(f"从 {csv_file} 中获取到前 {top_n} 个延迟最低的IP:")
         for i, ip in enumerate(ip_list):
-            speed = df_sorted.iloc[i]['下载速度(MB/s)']
-            print(f"  {i+1}. {ip} (速度: {speed} MB/s)")
+            latency = df_sorted.iloc[i]['平均延迟']
+            print(f"  {i+1}. {ip} (延迟: {latency} ms)")
         
         return ip_list
         
@@ -41,7 +41,6 @@ def get_top_ips_from_csv(csv_file: str, top_n: int = 5) -> List[str]:
         raise FileNotFoundError(f"CSV文件不存在: {csv_file}")
     except Exception as e:
         raise Exception(f"读取CSV文件时出错: {e}")
-
 def parse_record_names(record_names_str: str) -> List[str]:
     """
     解析记录名字符串，支持逗号、分号、空格分隔
@@ -186,3 +185,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
