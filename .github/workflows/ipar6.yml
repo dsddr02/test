@@ -1,0 +1,42 @@
+name: Update ipar
+
+on:
+  schedule:
+    - cron: "0 */3 * * *"  # 每10分钟跑一次
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+              pip install requests pandas
+
+     
+
+      - name: Make script executable
+        run: chmod +x CloudflareST
+
+      - name: cstest
+        env:
+         TEST_URL: ${{ secrets.TEST_URL }}  # 如果是敏感数据，使用 secrets.TEST_URL
+         CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+         CF_ZONE_ID: ${{ secrets.CF_ZONE_ID1 }}
+         CF_RECORD_NAME: ${{ secrets.CF_RECORD_NAME1 }}
+        run: |
+          set -e
+          ./CloudflareST -f ip.txt -t 8 -p 0 -sl 1 -n 300  -dd -tp 2087 -tlr 0 -url $TEST_URL
+          
+            python huoqdn.py
+      #- name: Clean up Workflow Runs
+       # uses: Mattraks/delete-workflow-runs@v2
+       # with:
+        # #token: ${{ secrets.GITHUB_TOKEN }}
+        # token: ${{ secrets.PAT_TOKEN }}
+         
+        # repository: ${{ github.repository }}
+       #  retain_days: 1
+        # keep_minimum_runs: 0
