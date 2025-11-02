@@ -2,7 +2,7 @@
   domain:
     - "services.googleapis.cn"
     - "googleapis.cn"
-    - "xn--ngstr-lra8j.com" # "xn--ngstr-lra8j.com" is the punycode for "网络.com"
+    - "xn--ngstr-lra8j.com"   
     - "doubleclick.net"
     - "googlesyndication.com"
     - "github.com"
