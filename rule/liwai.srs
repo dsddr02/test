@@ -1,8 +1,7 @@
-- type: domain
-  domain:
-    - "services.googleapis.cn"
-    - "googleapis.cn"
-    - "xn--ngstr-lra8j.com"   
-    - "doubleclick.net"
-    - "googlesyndication.com"
-    - "github.com"
+payload:
+  - DOMAIN-SUFFIX,services.googleapis.cn
+  - DOMAIN-SUFFIX,googleapis.cn
+  - DOMAIN-SUFFIX,xn--ngstr-lra8j.com
+  - DOMAIN-SUFFIX,doubleclick.net
+  - DOMAIN-SUFFIX,googlesyndication.com
+  - DOMAIN-SUFFIX,github.com
