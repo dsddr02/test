@@ -44,14 +44,6 @@ jobs:
        # chmod +x uploadyd.sh
         #./uploadyd.sh
 
-    - name: Upload valid_ipsyd.txt
-      env:
-        DOMAIN: ${{ secrets.DOMAIN_TOKEN }}
-        TOKEN: ${{ secrets.UPLOAD_TOKEN }}
-        FILENAME: valid_ipsyd.txt
-      run: |
-        chmod +x uploadyd.sh
-        ./uploadyd.sh
     - name: Commit changes
       run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
