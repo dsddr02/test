@@ -35,11 +35,11 @@ jobs:
 
 
 
-    - name: Upload yd.txt
-      env:
-        DOMAIN: ${{ secrets.DOMAIN_TOKEN }}
-        TOKEN: ${{ secrets.UPLOAD_TOKEN }}
-        FILENAME: yd.txt
+   # - name: Upload yd.txt
+     # env:
+       # DOMAIN: ${{ secrets.DOMAIN_TOKEN }}
+       # TOKEN: ${{ secrets.UPLOAD_TOKEN }}
+     #   FILENAME: yd.txt
       #run: |
        # chmod +x uploadyd.sh
         #./uploadyd.sh
@@ -70,12 +70,4 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ github.ref }}
 
-    - name: Clean up Workflow Runs
-      uses: Mattraks/delete-workflow-runs@v2
-      with:
-         #token: ${{ secrets.GITHUB_TOKEN }}
-         token: ${{ secrets.PAT_TOKEN }}
-         
-         repository: ${{ github.repository }}
-         retain_days: 1
-         keep_minimum_runs: 0
+  
