@@ -30,7 +30,7 @@ jobs:
         TEST_URL: ${{ secrets.TEST_URL }}  # 如果是敏感数据，使用 secrets.TEST_URL
       run: |
         set -e
-        ./CloudflareST -f yidong.txt -t 8 -p 0 -sl 1 -n 300 -dd -tp 2087 -tlr 0 -url $TEST_URL -
+        ./CloudflareST -f yidong.txt -t 8 -p 0 -sl 1 -n 300 -dd -tp 2087 -tlr 0 -url $TEST_URL 
             python3 yd.py
 
 
