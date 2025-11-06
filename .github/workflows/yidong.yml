@@ -3,7 +3,7 @@ name: Update yidong
 
 on:
   schedule:
-    - cron: '7 04,16 * * *' # 每12小时运行一次
+    - cron: '7 */4 * * *' # 每12小时运行一次
   workflow_dispatch: # 允许手动触发
 
 jobs:
