@@ -21,16 +21,33 @@ jobs:
     - name: Download content
       run: |
         [ -d rule ] || mkdir rule
+        
         curl -L https://anti-ad.net/easylist.txt -o ./rule/anti-ad.txt
 
-    - name: Remove unwanted domains
+    - name: Remove specified domains
       run: |
-        sed -i '/services\.googleapis\.cn/d' ./rule/anti-ad.txt
-        sed -i '/googleapis\.cn/d' ./rule/anti-ad.txt
-        sed -i '/xn--ngstr-lra8j\.com/d' ./rule/anti-ad.txt
-        sed -i '/doubleclick\.net/d' ./rule/anti-ad.txt
-        sed -i '/googlesyndication\.com/d' ./rule/anti-ad.txt
-        sed -i '/github\.com/d' ./rule/anti-ad.txt
+        # 定义要删除的域名列表
+        DOMAINS_TO_REMOVE="collector.github.com
+        devgottia.github.io
+        googleads.github.io
+        mihoutao1868.github.io
+        baidut.github.io
+        ofice365.github.io
+        tobecation.github.io
+        collector.githubapp.com
+        copilot-telemetry.githubusercontent.com
+        googlesyndication-cn.com
+        googlesyndication.com"
+        
+        # 为每个域名创建删除命令
+        for domain in $DOMAINS_TO_REMOVE; do
+          # 删除包含该域名的行
+          sed -i "/||${domain}^/d" ./rule/anti-ad.txt
+          # 同时删除可能存在的其他格式（如注释、不同写法等）
+          sed -i "/${domain}/d" ./rule/anti-ad.txt
+        done
+        
+        echo "指定域名已从 anti-ad.txt 中删除"
 
     - name: Convert sing-box rule set
       run: |
@@ -50,7 +67,7 @@ jobs:
           git commit -m "Update rules"
           git push
         fi
-
+        
     - name: Clean up Workflow Runs
       uses: Mattraks/delete-workflow-runs@v2
       with:
