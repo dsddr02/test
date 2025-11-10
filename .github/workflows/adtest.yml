@@ -21,18 +21,19 @@ jobs:
     - name: Download content
       run: |
         [ -d rule ] || mkdir rule
-        curl -L https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/adservers.txt -o ./rule/adguard-base-filter.txt
-        curl -L https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/ChineseFilter/sections/adservers.txt -o ./rule/adguard-chinese-filter.txt
-        curl -L https://raw.githubusercontent.com/easylist/easylistchina/master/easylistchina.txt -o ./rule/easylist-china.txt
-        curl -L https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt -o ./rule/adguard-dns-filter.txt
         curl -L https://anti-ad.net/easylist.txt -o ./rule/anti-ad.txt
+
+    - name: Remove unwanted domains
+      run: |
+        sed -i '/services\.googleapis\.cn/d' ./rule/anti-ad.txt
+        sed -i '/googleapis\.cn/d' ./rule/anti-ad.txt
+        sed -i '/xn--ngstr-lra8j\.com/d' ./rule/anti-ad.txt
+        sed -i '/doubleclick\.net/d' ./rule/anti-ad.txt
+        sed -i '/googlesyndication\.com/d' ./rule/anti-ad.txt
+        sed -i '/github\.com/d' ./rule/anti-ad.txt
 
     - name: Convert sing-box rule set
       run: |
-        sing-box rule-set convert --type adguard --output ./rule/adguard-base-filter.srs ./rule/adguard-base-filter.txt
-        sing-box rule-set convert --type adguard --output ./rule/adguard-chinese-filter.srs ./rule/adguard-chinese-filter.txt
-        sing-box rule-set convert --type adguard --output ./rule/easylist-china.srs ./rule/easylist-china.txt
-        sing-box rule-set convert --type adguard --output ./rule/adguard-dns-filter.srs ./rule/adguard-dns-filter.txt
         sing-box rule-set convert --type adguard --output ./rule/anti-ad.srs ./rule/anti-ad.txt
 
     - name: Commit and push
@@ -49,12 +50,11 @@ jobs:
           git commit -m "Update rules"
           git push
         fi
+
     - name: Clean up Workflow Runs
       uses: Mattraks/delete-workflow-runs@v2
       with:
-         #token: ${{ secrets.GITHUB_TOKEN }}
          token: ${{ secrets.PAT_TOKEN }}
-         
          repository: ${{ github.repository }}
          retain_days: 1
          keep_minimum_runs: 0
