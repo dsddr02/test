@@ -1,5 +1,6 @@
 !Title: anti-AD
 !Version: 20251108024426
+!Homepage: https://github.com/privacy-protection-tools/anti-AD
 !!!note! If you are using "AdGuard", please load https://anti-ad.net/adguard.txt
 !!!This list only applies to "AdGuard Home".
 !Total lines: 92716
@@ -24298,6 +24299,7 @@
 ||doubleclick-cn.net^
 ||doubleclick.cn^
 ||doubleclick.com^
+||doubleclick.net^
 ||doubledefend.com^
 ||anal.doubledouble.top^
 ||stats.doublejones.com^
@@ -33016,14 +33018,6 @@
 ||tracker.gitee.com^
 ||achicih.gitee.io^
 ||retarget.gites-de-france.com^
-||devgottia.github.io^
-||googleads.github.io^
-||mihoutao1868.github.io^
-||baidut.github.io^
-||ofice365.github.io^
-||tobecation.github.io^
-||collector.githubapp.com^
-||copilot-telemetry.githubusercontent.com^
 ||githuhey.com^
 ||gitoku.com^
 ||eg.gitpapa.com^
@@ -33868,7 +33862,6 @@
 ||googlers-cn.com^
 ||googlesandbox-cn.com^
 ||lzzht.googlespider1.cn^
-||googlesyndication-cn.com^
 ||googletagamnager.com^
 ||googletagmanager-cn.com^
 ||googletagmanager.com^
@@ -38638,6 +38631,7 @@
 ||sonar6.fzih1-1.fna.fbcdn.net.iberostar.com^
 ||sonar6.xy.fbcdn.net.iberostar.com^
 ||static.whatsapp.net.iberostar.com^
+||stats.g.doubleclick.net.iberostar.com^
 ||tx-br-cdn.kwai.net.iberostar.com^
 ||tx-pro-pull.kwai.net.iberostar.com^
 ||txv2-br-cdn.kwai.net.iberostar.com^
