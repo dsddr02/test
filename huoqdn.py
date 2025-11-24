@@ -138,7 +138,7 @@ def update_cloudflare_dns(ip_list: List[str]) -> None:
             "type": "A",
             "name": record_name,
             "content": ip,
-            "ttl": 300,     # 5分钟
+            "ttl": 60,     # 5分钟
             "proxied": False,  # 如果你要走CF代理，可以改成 True
         }
         add_url = f"https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records"
@@ -185,4 +185,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
