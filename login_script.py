@@ -5,18 +5,62 @@ import os
 import time
 import shutil
 import tempfile
+import requests  # 添加 requests 库用于 Telegram API
 import pyotp  # 用于生成 2FA 验证码
 from playwright.sync_api import sync_playwright
 
+def send_telegram_notification(bot_token, chat_id, message, zanghu):
+    """发送 Telegram 通知"""
+    try:
+        # 在消息中添加 zanghu 变量
+        full_message = f"{message}\n\n📦 仓库: {zanghu}"
+        
+        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        payload = {
+            "chat_id": chat_id,
+            "text": full_message,
+            "parse_mode": "HTML",
+            "disable_notification": False
+        }
+        
+        response = requests.post(url, json=payload, timeout=10)
+        
+        if response.status_code == 200:
+            print("📤 Telegram 通知发送成功")
+            return True
+        else:
+            print(f"⚠️ Telegram 通知发送失败: {response.status_code} - {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ 发送 Telegram 通知时出错: {e}")
+        return False
+
 def run_login():
-    # 1. 获取环境变量中的敏感信息
+    # 获取环境变量中的敏感信息
     username = os.environ.get("GH_USERNAME")
     password = os.environ.get("GH_PASSWORD")
     totp_secret = os.environ.get("GH_2FA_SECRET")
+    tele_bottoken = os.environ.get("GH_BOTTOKEN")
+    tele_chatid = os.environ.get("GH_CHATID")
+    zanghu = os.environ.get("ZANGHU", "未知仓库")  # 添加默认值
+
+    # 初始化执行状态
+    execution_status = "unknown"
+    execution_details = {
+        "start_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "success": False,
+        "error_message": "",
+        "final_url": "",
+        "page_title": ""
+    }
 
     if not username or not password:
-        print("❌ 错误: 必须设置 GH_USERNAME 和 GH_PASSWORD 环境变量。")
-        return
+        error_msg = "❌ 错误: 必须设置 GH_USERNAME 和 GH_PASSWORD 环境变量。"
+        print(error_msg)
+        execution_status = "failed"
+        execution_details["error_message"] = error_msg
+        return execution_status, execution_details
 
     # 创建临时用户数据目录，确保每次都是全新状态
     temp_user_data_dir = tempfile.mkdtemp(prefix="browser_temp_")
@@ -50,12 +94,8 @@ def run_login():
             context = browser.new_context(
                 viewport={'width': 1920, 'height': 1080},
                 user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                # 不传入 user_data_dir 参数，让 Playwright 使用临时目录
-                # 或者显式使用临时目录
                 storage_state=None,  # 确保不加载任何存储状态
-                # 禁用所有存储
-                permissions=[],
-                # 设置额外的上下文选项
+                permissions=[],  # 禁用所有存储
                 extra_http_headers={
                     'Accept-Language': 'en-US,en;q=0.9',
                 }
@@ -122,7 +162,6 @@ def run_login():
                 
                 if not found_button:
                     print("❌ 未找到 GitHub 登录按钮")
-                    # 截图查看页面状态
                     page.screenshot(path="login_error_no_button.png")
                     raise Exception("GitHub 登录按钮未找到")
                     
@@ -155,11 +194,9 @@ def run_login():
                     time.sleep(3)
             except Exception as e:
                 print(f"ℹ️ GitHub 表单处理异常: {e}")
-                # 截图查看当前状态
                 page.screenshot(path="github_form_error.png")
 
             # 5. 【核心】处理 2FA 双重验证 (解决异地登录拦截)
-            # 给页面一点时间跳转
             time.sleep(5)
             
             # 检查是否在 2FA 页面
@@ -200,10 +237,11 @@ def run_login():
                 else:
                     print("❌ 致命错误: 检测到 2FA 但未配置 GH_2FA_SECRET Secret！")
                     page.screenshot(path="2fa_missing_secret.png")
-                    exit(1)
+                    execution_status = "failed"
+                    execution_details["error_message"] = "2FA 密钥未配置"
+                    return execution_status, execution_details
 
             # 6. 处理授权确认页 (Authorize App)
-            # 给页面时间跳转
             time.sleep(5)
             current_url = page.url.lower()
             
@@ -228,15 +266,16 @@ def run_login():
 
             # 7. 等待最终跳转结果
             print("⏳ [Step 6] 等待跳转回 ClawCloud 控制台...")
-            # 等待较长的时间确保完全跳转
             time.sleep(10)
             page.wait_for_load_state("networkidle")
             
             final_url = page.url
+            execution_details["final_url"] = final_url
             print(f"📍 最终页面 URL: {final_url}")
             
             # 获取页面标题和内容片段用于验证
             page_title = page.title()
+            execution_details["page_title"] = page_title
             print(f"📄 页面标题: {page_title}")
             
             # 截图保存，用于 GitHub Actions 查看结果
@@ -276,6 +315,9 @@ def run_login():
             if is_success and success_indicators:
                 print(f"🎉🎉🎉 登录成功！成功指标: {', '.join(success_indicators)}")
                 print("✅ 任务完成")
+                execution_status = "success"
+                execution_details["success"] = True
+                execution_details["success_indicators"] = success_indicators
             else:
                 print("😭😭😭 登录失败。请下载 login_result.png 查看原因。")
                 print(f"❌ 失败原因分析:")
@@ -283,8 +325,23 @@ def run_login():
                 print(f"   - 页面标题: {page_title}")
                 print(f"   - 页面是否包含 'GitHub': {'github' in page_text.lower()}")
                 print(f"   - 页面是否包含 'login': {'login' in page_text.lower()}")
-                exit(1) # 抛出错误代码，让 Action 变红
+                execution_status = "failed"
+                execution_details["success"] = False
+                execution_details["error_message"] = "登录验证失败"
+                
+                # 保存更多调试信息
+                with open("debug_info.txt", "w") as f:
+                    f.write(f"URL: {final_url}\n")
+                    f.write(f"Title: {page_title}\n")
+                    f.write(f"Contains GitHub: {'github' in page_text.lower()}\n")
+                    f.write(f"Contains Login: {'login' in page_text.lower()}\n")
 
+        except Exception as e:
+            print(f"❌ 执行过程中发生异常: {e}")
+            execution_status = "failed"
+            execution_details["success"] = False
+            execution_details["error_message"] = str(e)
+            
         finally:
             # 确保浏览器关闭
             if 'browser' in locals():
@@ -297,6 +354,102 @@ def run_login():
                     print(f"🧹 已清理临时目录: {temp_user_data_dir}")
             except Exception as cleanup_error:
                 print(f"⚠️ 清理临时目录时出错: {cleanup_error}")
+    
+    return execution_status, execution_details
+
+def main():
+    """主函数，包含 Telegram 通知逻辑"""
+    start_time = time.time()
+    
+    # 获取 Telegram 相关环境变量
+    tele_bottoken = os.environ.get("GH_BOTTOKEN")
+    tele_chatid = os.environ.get("GH_CHATID")
+    zanghu = os.environ.get("ZANGHU", "Unknown Repository")
+    
+    # 检查 Telegram 配置
+    if not tele_bottoken or not tele_chatid:
+        print("⚠️ 警告: Telegram 机器人令牌或聊天ID未配置，将跳过通知")
+    
+    try:
+        # 执行登录任务
+        print("="*50)
+        print(f"🚀 开始执行 ClawCloud 自动登录任务")
+        print(f"📅 开始时间: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"📦 目标仓库: {zanghu}")
+        print("="*50)
+        
+        status, details = run_login()
+        
+        end_time = time.time()
+        execution_duration = round(end_time - start_time, 2)
+        
+        # 准备通知消息
+        if status == "success":
+            emoji = "🎉"
+            status_text = "成功"
+        else:
+            emoji = "❌"
+            status_text = "失败"
+        
+        # 构建通知消息
+        message = f"""
+<b>ClawCloud 自动登录 {emoji}</b>
+
+📊 <b>执行结果:</b> {status_text}
+⏱️ <b>执行时长:</b> {execution_duration}秒
+📅 <b>开始时间:</b> {details['start_time']}
+🌐 <b>最终URL:</b> {details['final_url'][:100]}...
+📄 <b>页面标题:</b> {details['page_title'][:50]}
+        """
+        
+        # 添加成功或失败的详细信息
+        if status == "success":
+            indicators = details.get('success_indicators', [])
+            if indicators:
+                message += f"\n✅ <b>成功指标:</b>\n• " + "\n• ".join(indicators)
+        else:
+            error_msg = details.get('error_message', '未知错误')
+            message += f"\n❌ <b>错误信息:</b> {error_msg}"
+        
+        print(f"\n📤 准备发送 Telegram 通知...")
+        print(f"   状态: {status_text}")
+        print(f"   时长: {execution_duration}秒")
+        
+        # 发送 Telegram 通知（如果配置了）
+        if tele_bottoken and tele_chatid:
+            send_telegram_notification(tele_bottoken, tele_chatid, message, zanghu)
+        else:
+            print("⚠️ 跳过 Telegram 通知 (未配置)")
+        
+        # 根据执行状态退出
+        if status == "success":
+            print(f"\n✅ 任务执行完成，状态: {status_text}")
+            exit(0)
+        else:
+            print(f"\n❌ 任务执行完成，状态: {status_text}")
+            exit(1)
+            
+    except Exception as e:
+        # 处理未捕获的异常
+        error_time = time.time()
+        duration = round(error_time - start_time, 2)
+        
+        error_message = f"""
+<b>ClawCloud 自动登录 💥</b>
+
+📊 <b>执行结果:</b> 异常失败
+⏱️ <b>执行时长:</b> {duration}秒
+📅 <b>开始时间:</b> {time.strftime('%Y-%m-%d %H:%M:%S')}
+❌ <b>错误信息:</b> {str(e)[:200]}
+        """
+        
+        print(f"💥 未捕获的异常: {e}")
+        
+        # 发送异常通知
+        if tele_bottoken and tele_chatid:
+            send_telegram_notification(tele_bottoken, tele_chatid, error_message, zanghu)
+        
+        exit(1)
 
 if __name__ == "__main__":
-    run_login()
+    main()
