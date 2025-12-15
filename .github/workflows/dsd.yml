@@ -1,0 +1,43 @@
+# 文件名: .github/workflows/clawcloud-login.yml
+name: dsdcaw
+
+on:
+  schedule:
+    - cron: '0 0 */12 * *'
+  workflow_dispatch:
+
+jobs:
+  auto-login:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install playwright pyotp
+          playwright install chromium
+
+      - name: Run Login Script
+        env:
+          GH_USERNAME: ${{ secrets.GH_USERNAMEDS }}
+          GH_PASSWORD: ${{ secrets.GH_PASSWORDDS }}
+          GH_2FA_SECRET: ${{ secrets.GH_2FA_SECRETDS }}
+          GH_BOTTOKEN: ${{ secrets.GH_CHATID }}
+          GH_CHATID: ${{ secrets.GH_CHATID }}
+          ZANGHU: ${{ secrets.ZANGHUDS }}
+        run: python -u login_script.py
+
+      - name: Upload Debug Screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: login-result
+          path: login_result.png
