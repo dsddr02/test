@@ -3,7 +3,7 @@ name: Clawed4
 
 on:
   schedule:
-    - cron: '0 0 */15 * *'
+    - cron: '0 0 */13 * *'
   workflow_dispatch:
 
 jobs:
@@ -32,6 +32,7 @@ jobs:
           GH_2FA_SECRET: ${{ secrets.GH_2FA_SECRETed }}
           GH_BOTTOKEN: ${{ secrets.GH_CHATID }}
           GH_CHATID: ${{ secrets.GH_CHATID }}
+          ZANGHU: ${{ secrets.ZANGHU }}
         run: python -u login_script.py
 
       - name: Upload Debug Screenshot
