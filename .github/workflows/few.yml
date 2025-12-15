@@ -40,4 +40,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: login-result
-          path: login_result.png
+          path: |
+            *.png
+            *.txt
+          retention-days: 3
