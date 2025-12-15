@@ -1,5 +1,5 @@
 # 文件名: .github/workflows/clawcloud-login.yml
-name: ClawCloud Run Auto Login (2FA Support)
+name: Clawed4
 
 on:
   schedule:
