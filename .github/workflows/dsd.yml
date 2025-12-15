@@ -30,7 +30,7 @@ jobs:
           GH_USERNAME: ${{ secrets.GH_USERNAMEDS }}
           GH_PASSWORD: ${{ secrets.GH_PASSWORDDS }}
           GH_2FA_SECRET: ${{ secrets.GH_2FA_SECRETDS }}
-          GH_BOTTOKEN: ${{ secrets.GH_CHATID }}
+          GH_BOTTOKEN: ${{ secrets.GH_BOTTOKEN }}
           GH_CHATID: ${{ secrets.GH_CHATID }}
           ZANGHU: ${{ secrets.ZANGHUDS }}
         run: python -u login_script.py
