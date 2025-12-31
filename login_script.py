@@ -54,7 +54,8 @@ def run_login():
         "final_url": "",
         "page_title": "",
         "app_launchpad_clicked": False,
-        "app_launchpad_loaded": False
+        "app_launchpad_loaded": False,
+        "app_launchpad_modal_detected": False
     }
 
     if not username or not password:
@@ -370,20 +371,16 @@ def run_login():
                                 button.scroll_into_view_if_needed()
                                 time.sleep(1)
                                 
+                                # 保存点击前的截图
+                                before_click_path = "before_app_launchpad_click.png"
+                                page.screenshot(path=before_click_path)
+                                print(f"📸 已保存点击前截图: {before_click_path}")
+                                
                                 # 点击按钮
                                 button.click()
                                 print(f"✅ 点击 App Launchpad 按钮: {selector}")
                                 execution_details["app_launchpad_clicked"] = True
                                 button_found = True
-                                
-                                # 等待页面加载或跳转
-                                time.sleep(5)
-                                page.wait_for_load_state("networkidle")
-                                
-                                # 截图保存点击后的页面
-                                click_screenshot_path = "after_app_launchpad_click.png"
-                                page.screenshot(path=click_screenshot_path)
-                                print(f"📸 已保存点击后截图: {click_screenshot_path}")
                                 
                                 break
                         except Exception as selector_error:
@@ -397,14 +394,15 @@ def run_login():
                         all_launchpad_elements = page.locator(":text('Launchpad')")
                         if all_launchpad_elements.count() > 0:
                             print(f"✅ 找到 {all_launchpad_elements.count()} 个包含 'Launchpad' 的元素")
+                            
+                            # 保存点击前的截图
+                            before_click_path = "before_app_launchpad_click.png"
+                            page.screenshot(path=before_click_path)
+                            print(f"📸 已保存点击前截图: {before_click_path}")
+                            
                             all_launchpad_elements.first.click()
                             execution_details["app_launchpad_clicked"] = True
                             print("✅ 点击第一个包含 'Launchpad' 的元素")
-                            
-                            # 等待并截图
-                            time.sleep(5)
-                            page.wait_for_load_state("networkidle")
-                            page.screenshot(path="after_launchpad_click.png")
                             
                         else:
                             print("❌ 未找到任何 App Launchpad 相关元素")
@@ -414,57 +412,123 @@ def run_login():
                     print(f"❌ 点击 App Launchpad 按钮时出错: {app_error}")
                     execution_details["app_launchpad_clicked"] = False
                 
-                # 9.3 验证 App Launchpad 是否加载成功
-                print("🔍 [步骤 9.3] 验证 App Launchpad 加载状态...")
+                # 9.3 等待并验证 App Launchpad 模态窗口加载
+                print("🔍 [步骤 9.3] 等待 App Launchpad 模态窗口加载...")
                 try:
-                    # 等待一段时间让页面完全加载
-                    time.sleep(8)
-                    page.wait_for_load_state("networkidle")
+                    # 等待模态窗口出现
+                    print("⏳ 等待模态窗口/弹出窗口出现...")
                     
-                    # 获取当前页面信息
-                    current_url_after_click = page.url
-                    current_title_after_click = page.title()
-                    
-                    print(f"   📍 点击后 URL: {current_url_after_click}")
-                    print(f"   📄 点击后标题: {current_title_after_click}")
-                    
-                    # 检查是否成功加载 App Launchpad
-                    page_content = page.content().lower()
-                    app_launchpad_indicators = [
-                        "Applications",
-                        "Memory",
-                        "CPU",
-                        "Status"
+                    # 方法1: 等待特定模态窗口元素
+                    modal_selectors = [
+                        ".modal", ".modal-dialog", ".modal-content", ".modal-overlay", 
+                        ".ant-modal", ".el-dialog", ".drawer", ".overlay",
+                        "[role='dialog']", "[aria-modal='true']"
                     ]
                     
-                    indicators_found = []
-                    for indicator in app_launchpad_indicators:
-                        if indicator in page_content:
-                            indicators_found.append(indicator)
+                    modal_detected = False
+                    modal_element = None
                     
-                    if len(indicators_found) >= 2:
-                        print(f"✅ App Launchpad 加载成功，找到关键词: {', '.join(indicators_found)}")
+                    for selector in modal_selectors:
+                        try:
+                            if page.locator(selector).count() > 0:
+                                modal_element = page.locator(selector).first
+                                modal_element.wait_for(state="visible", timeout=10000)
+                                print(f"✅ 检测到模态窗口元素: {selector}")
+                                execution_details["app_launchpad_modal_detected"] = True
+                                modal_detected = True
+                                break
+                        except:
+                            continue
+                    
+                    # 方法2: 如果没有检测到标准模态元素，检查是否有新的UI元素出现
+                    if not modal_detected:
+                        print("⚠️ 未检测到标准模态窗口，检查是否有新内容出现...")
+                        time.sleep(3)  # 给更多时间加载
+                        
+                        # 检查是否有常见弹出窗口内容
+                        popup_indicators = [
+                            "Applications", "Memory", "CPU", "Status", 
+                            "Launchpad", "Close", "×", "✕", "❌"
+                        ]
+                        
+                        page_text = page.content()
+                        found_indicators = []
+                        for indicator in popup_indicators:
+                            if indicator in page_text:
+                                found_indicators.append(indicator)
+                        
+                        if len(found_indicators) >= 2:
+                            print(f"✅ 检测到弹出窗口内容，找到关键词: {', '.join(found_indicators)}")
+                            execution_details["app_launchpad_modal_detected"] = True
+                            modal_detected = True
+                    
+                    # 方法3: 检测屏幕是否变暗或有覆盖层
+                    if not modal_detected:
+                        try:
+                            # 查找覆盖层（通常模态窗口会有背景覆盖）
+                            overlays = page.locator("[class*='overlay'], [class*='backdrop'], [class*='mask']")
+                            if overlays.count() > 0:
+                                print("✅ 检测到覆盖层/遮罩层，可能是模态窗口背景")
+                                execution_details["app_launchpad_modal_detected"] = True
+                                modal_detected = True
+                        except:
+                            pass
+                    
+                    if modal_detected:
+                        print("✅ App Launchpad 模态窗口已检测到")
                         execution_details["app_launchpad_loaded"] = True
                         
-                        # 保存最终截图
-                        final_screenshot_path = "app_launchpad_final.png"
-                        page.screenshot(path=final_screenshot_path)
-                        print(f"📸 已保存 App Launchpad 最终截图: {final_screenshot_path}")
+                        # 等待一小段时间让模态窗口完全加载
+                        time.sleep(2)
                         
-                        # 保存页面信息
-                        with open("page_info.txt", "w") as f:
-                            f.write(f"最终URL: {current_url_after_click}\n")
-                            f.write(f"最终标题: {current_title_after_click}\n")
-                            f.write(f"找到的关键词: {', '.join(indicators_found)}\n")
-                            f.write(f"App Launchpad 点击状态: {execution_details['app_launchpad_clicked']}\n")
-                            f.write(f"App Launchpad 加载状态: {execution_details['app_launchpad_loaded']}\n")
+                        # 保存模态窗口截图
+                        modal_screenshot_path = "app_launchpad_modal.png"
+                        page.screenshot(path=modal_screenshot_path)
+                        print(f"📸 已保存模态窗口截图: {modal_screenshot_path}")
+                        
+                        # 保存页面详细信息
+                        page_content = page.content()
+                        with open("app_launchpad_info.txt", "w", encoding="utf-8") as f:
+                            f.write("=== App Launchpad 信息 ===\n")
+                            f.write(f"检测时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+                            f.write(f"模态窗口检测: {'是' if execution_details['app_launchpad_modal_detected'] else '否'}\n")
+                            f.write(f"URL: {page.url}\n")
+                            f.write(f"页面标题: {page.title()}\n")
+                            
+                            # 提取关键信息
+                            keywords_to_find = ["Applications", "Memory", "CPU", "Status", "Running", "Stopped", "Launchpad"]
+                            for keyword in keywords_to_find:
+                                if keyword in page_content:
+                                    f.write(f"找到关键词: {keyword}\n")
+                            
+                            # 如果可能，获取模态窗口内容
+                            if modal_element:
+                                try:
+                                    modal_text = modal_element.text_content()[:500]  # 只取前500字符
+                                    f.write(f"模态窗口内容预览: {modal_text}\n")
+                                except:
+                                    pass
+                        
+                        print("✅ App Launchpad 操作完成")
+                        
                     else:
-                        print("⚠️ App Launchpad 加载状态不确定")
+                        print("⚠️ 未检测到明显的模态窗口，但可能已成功打开")
                         execution_details["app_launchpad_loaded"] = False
+                        
+                        # 无论如何保存当前页面截图
+                        time.sleep(2)
+                        unknown_modal_path = "unknown_modal_state.png"
+                        page.screenshot(path=unknown_modal_path)
+                        print(f"📸 已保存当前状态截图: {unknown_modal_path}")
                 
-                except Exception as verify_error:
-                    print(f"❌ 验证 App Launchpad 加载状态时出错: {verify_error}")
+                except Exception as modal_error:
+                    print(f"⚠️ 检测模态窗口时出错: {modal_error}")
                     execution_details["app_launchpad_loaded"] = False
+                    
+                    # 出错时也保存截图
+                    error_modal_path = "modal_detection_error.png"
+                    page.screenshot(path=error_modal_path)
+                    print(f"📸 已保存错误状态截图: {error_modal_path}")
                 
                 print("✅✅✅ 所有任务完成")
                 
@@ -541,13 +605,14 @@ def main():
             # 添加 App Launchpad 操作状态
             app_status = ""
             if details.get("app_launchpad_clicked"):
-                app_status += "✅ App Launchpad 点击成功"
                 if details.get("app_launchpad_loaded"):
-                    app_status += "并加载成功"
+                    app_status = "✅ App Launchpad 已成功打开并加载"
+                elif details.get("app_launchpad_modal_detected"):
+                    app_status = "✅ App Launchpad 已打开（模态窗口已检测）"
                 else:
-                    app_status += "但加载状态不确定"
+                    app_status = "⚠️ App Launchpad 已点击但状态不确定"
             else:
-                app_status = "⚠️ App Launchpad 未点击"
+                app_status = "❌ App Launchpad 未点击"
                 
         else:
             emoji = "❌"
