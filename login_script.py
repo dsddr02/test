@@ -52,7 +52,9 @@ def run_login():
         "success": False,
         "error_message": "",
         "final_url": "",
-        "page_title": ""
+        "page_title": "",
+        "app_launchpad_clicked": False,
+        "app_launchpad_loaded": False
     }
 
     if not username or not password:
@@ -312,12 +314,164 @@ def run_login():
                 success_indicators.append("找到页面导航元素")
                 is_success = True
 
+            # 9. 登录成功后执行额外操作
             if is_success and success_indicators:
                 print(f"🎉🎉🎉 登录成功！成功指标: {', '.join(success_indicators)}")
-                print("✅ 任务完成")
                 execution_status = "success"
                 execution_details["success"] = True
                 execution_details["success_indicators"] = success_indicators
+                
+                print("\n" + "="*50)
+                print("🚀 [额外步骤] 开始执行登录后操作")
+                print("="*50)
+                
+                # 9.1 刷新页面确保所有资源加载完成
+                print("🔄 [步骤 9.1] 刷新页面...")
+                try:
+                    page.reload(wait_until="networkidle")
+                    time.sleep(5)
+                    print("✅ 页面刷新完成")
+                    
+                    # 截图保存刷新后的页面
+                    refresh_screenshot_path = "after_refresh.png"
+                    page.screenshot(path=refresh_screenshot_path)
+                    print(f"📸 已保存刷新后截图: {refresh_screenshot_path}")
+                    
+                except Exception as refresh_error:
+                    print(f"⚠️ 刷新页面时出错: {refresh_error}")
+                
+                # 9.2 查找并点击 "App Launchpad" 按钮
+                print("🔍 [步骤 9.2] 查找 App Launchpad 按钮...")
+                try:
+                    # 多种选择器来查找 App Launchpad 按钮
+                    app_launchpad_selectors = [
+                        "button:has-text('App Launchpad')",
+                        "a:has-text('App Launchpad')",
+                        "//button[contains(., 'App Launchpad')]",
+                        "//a[contains(., 'App Launchpad')]",
+                        "[href*='launchpad']",
+                        "[href*='app-launchpad']",
+                        ".app-launchpad",
+                        "#app-launchpad",
+                        "nav a:has-text('App')",
+                        "nav button:has-text('Launchpad')"
+                    ]
+                    
+                    button_found = False
+                    for selector in app_launchpad_selectors:
+                        try:
+                            if page.locator(selector).count() > 0:
+                                button = page.locator(selector).first
+                                button.wait_for(state="visible", timeout=10000)
+                                
+                                print(f"✅ 找到 App Launchpad 按钮: {selector}")
+                                
+                                # 确保按钮可见且在视图中
+                                button.scroll_into_view_if_needed()
+                                time.sleep(1)
+                                
+                                # 点击按钮
+                                button.click()
+                                print(f"✅ 点击 App Launchpad 按钮: {selector}")
+                                execution_details["app_launchpad_clicked"] = True
+                                button_found = True
+                                
+                                # 等待页面加载或跳转
+                                time.sleep(5)
+                                page.wait_for_load_state("networkidle")
+                                
+                                # 截图保存点击后的页面
+                                click_screenshot_path = "after_app_launchpad_click.png"
+                                page.screenshot(path=click_screenshot_path)
+                                print(f"📸 已保存点击后截图: {click_screenshot_path}")
+                                
+                                break
+                        except Exception as selector_error:
+                            print(f"   ⚠️ 选择器 {selector} 失败: {selector_error}")
+                            continue
+                    
+                    if not button_found:
+                        print("⚠️ 未找到 App Launchpad 按钮，尝试其他方法...")
+                        
+                        # 方法2: 查找所有包含 "Launchpad" 的元素
+                        all_launchpad_elements = page.locator(":text('Launchpad')")
+                        if all_launchpad_elements.count() > 0:
+                            print(f"✅ 找到 {all_launchpad_elements.count()} 个包含 'Launchpad' 的元素")
+                            all_launchpad_elements.first.click()
+                            execution_details["app_launchpad_clicked"] = True
+                            print("✅ 点击第一个包含 'Launchpad' 的元素")
+                            
+                            # 等待并截图
+                            time.sleep(5)
+                            page.wait_for_load_state("networkidle")
+                            page.screenshot(path="after_launchpad_click.png")
+                            
+                        else:
+                            print("❌ 未找到任何 App Launchpad 相关元素")
+                            execution_details["app_launchpad_clicked"] = False
+                
+                except Exception as app_error:
+                    print(f"❌ 点击 App Launchpad 按钮时出错: {app_error}")
+                    execution_details["app_launchpad_clicked"] = False
+                
+                # 9.3 验证 App Launchpad 是否加载成功
+                print("🔍 [步骤 9.3] 验证 App Launchpad 加载状态...")
+                try:
+                    # 等待一段时间让页面完全加载
+                    time.sleep(8)
+                    page.wait_for_load_state("networkidle")
+                    
+                    # 获取当前页面信息
+                    current_url_after_click = page.url
+                    current_title_after_click = page.title()
+                    
+                    print(f"   📍 点击后 URL: {current_url_after_click}")
+                    print(f"   📄 点击后标题: {current_title_after_click}")
+                    
+                    # 检查是否成功加载 App Launchpad
+                    page_content = page.content().lower()
+                    app_launchpad_indicators = [
+                        "launchpad",
+                        "app",
+                        "application",
+                        "container",
+                        "deployment",
+                        "running",
+                        "status",
+                        "dashboard"
+                    ]
+                    
+                    indicators_found = []
+                    for indicator in app_launchpad_indicators:
+                        if indicator in page_content:
+                            indicators_found.append(indicator)
+                    
+                    if len(indicators_found) >= 2:
+                        print(f"✅ App Launchpad 加载成功，找到关键词: {', '.join(indicators_found)}")
+                        execution_details["app_launchpad_loaded"] = True
+                        
+                        # 保存最终截图
+                        final_screenshot_path = "app_launchpad_final.png"
+                        page.screenshot(path=final_screenshot_path)
+                        print(f"📸 已保存 App Launchpad 最终截图: {final_screenshot_path}")
+                        
+                        # 保存页面信息
+                        with open("page_info.txt", "w") as f:
+                            f.write(f"最终URL: {current_url_after_click}\n")
+                            f.write(f"最终标题: {current_title_after_click}\n")
+                            f.write(f"找到的关键词: {', '.join(indicators_found)}\n")
+                            f.write(f"App Launchpad 点击状态: {execution_details['app_launchpad_clicked']}\n")
+                            f.write(f"App Launchpad 加载状态: {execution_details['app_launchpad_loaded']}\n")
+                    else:
+                        print("⚠️ App Launchpad 加载状态不确定")
+                        execution_details["app_launchpad_loaded"] = False
+                
+                except Exception as verify_error:
+                    print(f"❌ 验证 App Launchpad 加载状态时出错: {verify_error}")
+                    execution_details["app_launchpad_loaded"] = False
+                
+                print("✅✅✅ 所有任务完成")
+                
             else:
                 print("😭😭😭 登录失败。请下载 login_result.png 查看原因。")
                 print(f"❌ 失败原因分析:")
@@ -387,9 +541,22 @@ def main():
         if status == "success":
             emoji = "🎉"
             status_text = "成功"
+            
+            # 添加 App Launchpad 操作状态
+            app_status = ""
+            if details.get("app_launchpad_clicked"):
+                app_status += "✅ App Launchpad 点击成功"
+                if details.get("app_launchpad_loaded"):
+                    app_status += "并加载成功"
+                else:
+                    app_status += "但加载状态不确定"
+            else:
+                app_status = "⚠️ App Launchpad 未点击"
+                
         else:
             emoji = "❌"
             status_text = "失败"
+            app_status = "未执行"
         
         # 构建通知消息
         message = f"""
@@ -400,6 +567,7 @@ def main():
 📅 <b>开始时间:</b> {details['start_time']}
 🌐 <b>最终URL:</b> {details['final_url'][:100]}...
 📄 <b>页面标题:</b> {details['page_title'][:50]}
+🚀 <b>App Launchpad:</b> {app_status}
         """
         
         # 添加成功或失败的详细信息
@@ -414,6 +582,7 @@ def main():
         print(f"\n📤 准备发送 Telegram 通知...")
         print(f"   状态: {status_text}")
         print(f"   时长: {execution_duration}秒")
+        print(f"   App Launchpad 状态: {app_status}")
         
         # 发送 Telegram 通知（如果配置了）
         if tele_bottoken and tele_chatid:
