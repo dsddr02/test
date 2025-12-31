@@ -431,14 +431,10 @@ def run_login():
                     # 检查是否成功加载 App Launchpad
                     page_content = page.content().lower()
                     app_launchpad_indicators = [
-                        "launchpad",
-                        "app",
-                        "application",
-                        "container",
-                        "deployment",
-                        "running",
-                        "status",
-                        "dashboard"
+                        "Applications",
+                        "Memory",
+                        "CPU",
+                        "Status"
                     ]
                     
                     indicators_found = []
