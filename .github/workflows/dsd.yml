@@ -3,7 +3,7 @@ name: dsdcaw
 
 on:
   schedule:
-    - cron: '0 0 */12 * *'
+    - cron: '0 15 12,27 * *'
   workflow_dispatch:
 
 jobs:
@@ -42,5 +42,5 @@ jobs:
           name: login-result
           path: |
             *.png
-            *.txt
-          retention-days: 7
+
+          retention-days: 3
