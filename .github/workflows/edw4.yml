@@ -3,7 +3,7 @@ name: Clawed4
 
 on:
   schedule:
-    - cron: '0 0 */13 * *'
+    - cron: '0 16 13,26 * *'
   workflow_dispatch:
 
 jobs:
