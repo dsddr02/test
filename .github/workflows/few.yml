@@ -3,7 +3,7 @@ name: fewfcaw
 
 on:
   schedule:
-    - cron: '0 0 */17 * *'
+    - cron: '0 14 11,26 * *'
   workflow_dispatch:
 
 jobs:
