@@ -10,20 +10,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Setup sing-box
       run: |
         set -Eeuo pipefail
         wget -O sing-box.deb https://github.com/SagerNet/sing-box/releases/download/v1.12.14/sing-box_1.12.14_linux_amd64.deb
-        sudo dpkg -i sing-box.deb
+        sudo dpkg -i sing-box.deb || sudo apt-get install -f -y
+
     - name: Download content
       run: |
-        [ -d rule ] || mkdir rule
-        
-        curl -L https://anti-ad.net/easylist.txt -o ./rule/anti-ad.txt
+        mkdir -p rule
+        curl -sSL -o ./rule/anti-ad.txt https://anti-ad.net/easylist.txt
 
-    - name: Remove specified domains
+    - name: Remove specified domains (改进版)
       run: |
         # 定义要删除的域名列表
         DOMAINS_TO_REMOVE="collector.github.com
@@ -38,39 +38,76 @@ jobs:
         googlesyndication-cn.com
         googlesyndication.com"
         
+        # 备份原始文件
+        cp ./rule/anti-ad.txt ./rule/anti-ad.txt.bak
+        
         # 为每个域名创建删除命令
         for domain in $DOMAINS_TO_REMOVE; do
-          # 删除包含该域名的行
-          sed -i "/||${domain}^/d" ./rule/anti-ad.txt
-          # 同时删除可能存在的其他格式（如注释、不同写法等）
-          sed -i "/${domain}/d" ./rule/anti-ad.txt
+          echo "Removing domain: $domain"
+          # 只删除以 ||domain^ 开头的规则，避免误删
+          sed -i "/^||${domain}\^/d" ./rule/anti-ad.txt
+          # 删除可能存在的注释行
+          sed -i "/^!.*${domain}/d" ./rule/anti-ad.txt
+          # 删除包含域名但不影响其他规则的行
+          sed -i "/,domain=${domain}$/d" ./rule/anti-ad.txt
         done
         
-        echo "指定域名已从 anti-ad.txt 中删除"
+        # 统计删除前后的行数差异
+        original_lines=$(wc -l < ./rule/anti-ad.txt.bak)
+        new_lines=$(wc -l < ./rule/anti-ad.txt)
+        echo "删除完成：原始行数 $original_lines，新行数 $new_lines，删除了 $((original_lines - new_lines)) 行"
 
-    - name: Convert sing-box rule set
+    - name: Convert sing-box rule set (带错误处理)
       run: |
-        sing-box rule-set convert --type adguard --output ./rule/anti-ad.srs ./rule/anti-ad.txt
+        # 确保规则文件存在且非空
+        if [ ! -s ./rule/anti-ad.txt ]; then
+          echo "错误：规则文件为空或不存在"
+          exit 1
+        fi
+        
+        # 转换规则，允许部分规则被忽略
+        sing-box rule-set convert \
+          --type adguard \
+          --output ./rule/anti-ad.srs \
+          ./rule/anti-ad.txt
+        
+        # 检查生成的.srs文件
+        if [ ! -f ./rule/anti-ad.srs ]; then
+          echo "错误：规则转换失败，未生成.srs文件"
+          exit 1
+        fi
+        
+        echo "规则转换完成，输出文件已生成"
+
+    - name: Check file sizes
+      run: |
+        echo "规则文件大小统计："
+        ls -lh ./rule/
+        echo "anti-ad.srs 文件大小：" && du -h ./rule/anti-ad.srs
 
     - name: Commit and push
       run: |
         git config --global user.email "action@github.com"
         git config --global user.name "GitHub Action"
-        git add ./rule/*.srs
-        git add ./rule/*.txt
-
-        if git diff --staged --quiet; then
-          echo "No changes to commit"
-          exit 0
-        else
-          git commit -m "Update rules"
+        git add ./rule/
+        
+        if ! git diff --cached --quiet; then
+          git commit -m "Update rules $(date '+%Y-%m-%d %H:%M:%S')"
           git push
+          echo "更新已推送"
+        else
+          echo "没有需要提交的更改"
         fi
         
     - name: Clean up Workflow Runs
       uses: Mattraks/delete-workflow-runs@v2
       with:
-         token: ${{ secrets.PAT_TOKEN }}
-         repository: ${{ github.repository }}
-         retain_days: 1
-         keep_minimum_runs: 0
+        token: ${{ secrets.PAT_TOKEN }}
+        repository: ${{ github.repository }}
+        retain_days: 1
+        keep_minimum_runs: 0
+
+    - name: Clean up workspace
+      run: |
+        rm -f ./rule/anti-ad.txt.bak
+        rm -f sing-box.deb
