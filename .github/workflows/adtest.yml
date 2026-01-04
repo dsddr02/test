@@ -16,7 +16,7 @@ jobs:
       run: |
         set -Eeuo pipefail
         wget -O sing-box.deb https://github.com/SagerNet/sing-box/releases/download/v1.12.14/sing-box_1.12.14_linux_amd64.deb
-
+        sudo dpkg -i sing-box.deb
     - name: Download content
       run: |
         [ -d rule ] || mkdir rule
