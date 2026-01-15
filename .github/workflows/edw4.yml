@@ -33,7 +33,7 @@ jobs:
           GH_BOTTOKEN: ${{ secrets.GH_BOTTOKEN }}
           GH_CHATID: ${{ secrets.GH_CHATID }}
           ZANGHU: ${{ secrets.ZANGHUed }}
-        run: python -u login_script.py
+        run: python -u 222.py
 
       - name: Upload Debug Screenshot
         if: always()
@@ -42,5 +42,5 @@ jobs:
           name: login-result
           path: |
             *.png
-            *.txt
+            
           retention-days: 7
