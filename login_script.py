@@ -3,6 +3,7 @@
 
 import os
 import time
+import random
 import shutil
 import tempfile
 import requests  # 添加 requests 库用于 Telegram API
@@ -35,6 +36,19 @@ def send_telegram_notification(bot_token, chat_id, message, zanghu):
     except Exception as e:
         print(f"❌ 发送 Telegram 通知时出错: {e}")
         return False
+
+def human_like_delay(min_seconds=0.3, max_seconds=1.5):
+    """模拟人类随机延迟"""
+    delay = random.uniform(min_seconds, max_seconds)
+    time.sleep(delay)
+    return delay
+
+def human_like_type(element, text, min_delay=30, max_delay=100):
+    """模拟人类打字速度（毫秒级延迟）"""
+    for char in text:
+        element.type(char)
+        # 随机延迟，模拟人类打字速度
+        time.sleep(random.uniform(min_delay/1000, max_delay/1000))
 
 def run_login():
     # 获取环境变量中的敏感信息
@@ -96,28 +110,63 @@ def run_login():
             # 创建上下文，指定临时用户数据目录，确保全新状态
             context = browser.new_context(
                 viewport={'width': 1920, 'height': 1080},
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
                 storage_state=None,  # 确保不加载任何存储状态
                 permissions=[],  # 禁用所有存储
                 extra_http_headers={
                     'Accept-Language': 'en-US,en;q=0.9',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                    'Cache-Control': 'no-cache',
                 }
             )
             
             # 在新上下文中创建页面
             page = context.new_page()
             
-            # 添加脚本以覆盖 navigator.webdriver 属性，避免被检测
+            # 增强反检测脚本
             page.add_init_script("""
+                // 基础反检测
                 Object.defineProperty(navigator, 'webdriver', {
                     get: () => undefined
                 });
+
+                // 模拟插件 (Headless Chrome 默认无插件)
                 Object.defineProperty(navigator, 'plugins', {
                     get: () => [1, 2, 3, 4, 5]
                 });
+
+                // 模拟语言
                 Object.defineProperty(navigator, 'languages', {
                     get: () => ['en-US', 'en']
                 });
+
+                // 模拟 window.chrome
+                window.chrome = { runtime: {} };
+
+                // 绕过权限检测
+                const originalQuery = window.navigator.permissions.query;
+                window.navigator.permissions.query = (parameters) => (
+                    parameters.name === 'notifications' ?
+                    Promise.resolve({ state: Notification.permission }) :
+                    originalQuery(parameters)
+                );
+
+                // 隐藏自动化特征
+                Object.defineProperty(navigator, 'userAgent', {
+                    get: () => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'
+                });
+
+                // 覆盖常见自动化检测属性
+                Object.defineProperty(document, 'hidden', { value: false });
+                Object.defineProperty(document, 'visibilityState', { value: 'visible' });
+
+                // 添加一些随机特征
+                Math.random = () => {
+                    const array = new Uint32Array(1);
+                    window.crypto.getRandomValues(array);
+                    return array[0] / (0xffffffff + 1);
+                };
             """)
 
             # 2. 访问 ClawCloud 登录页
@@ -129,8 +178,9 @@ def run_login():
             
             page.goto(target_url, wait_until="networkidle")
             
-            # 强制等待页面加载完成
-            time.sleep(2)
+            # 模拟人类等待页面加载
+            delay = human_like_delay(1.5, 3.0)
+            print(f"⏳ 随机延迟 {delay:.2f} 秒模拟人类浏览...")
 
             # 3. 点击 GitHub 登录按钮
             print("🔍 [Step 3] 寻找 GitHub 按钮...")
@@ -150,15 +200,34 @@ def run_login():
                     if page.locator(selector).count() > 0:
                         login_button = page.locator(selector).first
                         login_button.wait_for(state="visible", timeout=10000)
+                        
+                        # 模拟人类悬停操作
+                        print("🖱️ 模拟悬停在 GitHub 按钮上...")
+                        login_button.hover()
+                        human_like_delay(0.2, 0.5)
+                        
+                        # 模拟人类点击前延迟
+                        human_like_delay(0.3, 0.8)
+                        
                         login_button.click()
                         print(f"✅ 使用选择器找到并点击 GitHub 按钮: {selector}")
                         found_button = True
+                        
+                        # 点击后随机延迟
+                        human_like_delay(0.5, 1.5)
                         break
                 
                 if not found_button:
                     # 如果没有找到特定按钮，尝试查找任何包含 "GitHub" 文本的元素
                     github_elements = page.locator(":text('GitHub')")
                     if github_elements.count() > 0:
+                        # 模拟人类悬停操作
+                        github_elements.first.hover()
+                        human_like_delay(0.2, 0.5)
+                        
+                        # 模拟人类点击前延迟
+                        human_like_delay(0.3, 0.8)
+                        
                         github_elements.first.click()
                         print("✅ 点击包含 'GitHub' 文本的元素")
                         found_button = True
@@ -175,6 +244,7 @@ def run_login():
                     print("🔄 尝试直接访问 GitHub OAuth URL...")
                     page.goto("https://github.com/login/oauth/authorize?client_id=YOUR_CLIENT_ID&redirect_uri=https://us-west-1.run.claw.cloud/auth/callback/github")
                     page.wait_for_load_state("networkidle")
+                    human_like_delay(1.0, 2.0)
                 except Exception as oauth_error:
                     print(f"❌ OAuth 重定向也失败: {oauth_error}")
                     raise
@@ -184,30 +254,81 @@ def run_login():
             try:
                 # 等待 URL 变更为 github.com
                 page.wait_for_url(lambda url: "github.com" in url, timeout=15000)
+                human_like_delay(1.0, 2.0)
                 
                 # 检查是否在登录页面
                 if "login" in page.url.lower():
                     print("🔒 输入账号密码...")
                     # 等待登录字段加载
                     page.wait_for_selector("#login_field", timeout=10000)
-                    page.fill("#login_field", username)
-                    page.fill("#password", password)
-                    page.click("input[name='commit']") # 点击登录按钮
-                    print("📤 登录表单已提交")
-                    time.sleep(3)
+                    
+                    # 模拟人类输入用户名
+                    print("👤 模拟人类输入用户名...")
+                    user_input = page.locator('#login_field')
+                    
+                    # 点击输入框前随机延迟
+                    human_like_delay(0.3, 0.8)
+                    user_input.click()
+                    human_like_delay(0.2, 0.4)
+                    
+                    # 清空可能存在的文本
+                    user_input.fill("")
+                    human_like_delay(0.1, 0.3)
+                    
+                    # 模拟人类打字速度输入用户名
+                    human_like_type(user_input, username, min_delay=40, max_delay=120)
+                    print(f"✅ 用户名输入完成")
+                    human_like_delay(0.5, 1.0)
+                    
+                    # 模拟人类输入密码
+                    print("🔑 模拟人类输入密码...")
+                    pass_input = page.locator('#password')
+                    
+                    # 点击输入框前随机延迟
+                    human_like_delay(0.3, 0.8)
+                    pass_input.click()
+                    human_like_delay(0.2, 0.4)
+                    
+                    # 模拟人类打字速度输入密码
+                    human_like_type(pass_input, password, min_delay=50, max_delay=150)
+                    print(f"✅ 密码输入完成")
+                    human_like_delay(0.8, 1.5)
+                    
+                    # 找到并点击登录按钮
+                    print("🖱️ 准备点击登录按钮...")
+                    commit_button_selectors = [
+                        "input[name='commit']",
+                        "button[type='submit']",
+                        "button:has-text('Sign in')",
+                        "[value='Sign in']"
+                    ]
+                    
+                    for selector in commit_button_selectors:
+                        if page.locator(selector).count() > 0:
+                            # 悬停并延迟后点击
+                            commit_button = page.locator(selector).first
+                            commit_button.hover()
+                            human_like_delay(0.3, 0.7)
+                            commit_button.click()
+                            print(f"✅ 登录表单已提交 (使用选择器: {selector})")
+                            break
+                    
+                    # 点击后随机延迟
+                    human_like_delay(2.0, 3.5)
             except Exception as e:
                 print(f"ℹ️ GitHub 表单处理异常: {e}")
                 page.screenshot(path="github_form_error.png")
 
             # 5. 【核心】处理 2FA 双重验证 (解决异地登录拦截)
-            time.sleep(5)
+            print("⏳ [Step 5] 等待可能的 2FA 验证...")
+            human_like_delay(3.0, 5.0)
             
             # 检查是否在 2FA 页面
             current_url = page.url
             print(f"🔗 当前 URL: {current_url}")
             
             if "two-factor" in current_url or "two_factor" in current_url or page.locator("#app_totp").count() > 0 or page.locator("#otp").count() > 0:
-                print("🔐 [Step 5] 检测到 2FA 双重验证请求！")
+                print("🔐 检测到 2FA 双重验证请求！")
                 
                 if totp_secret:
                     print("🔢 正在计算动态验证码 (TOTP)...")
@@ -222,15 +343,33 @@ def run_login():
                         
                         for selector in otp_selectors:
                             if page.locator(selector).count() > 0:
-                                page.fill(selector, token)
+                                otp_input = page.locator(selector).first
+                                
+                                # 模拟人类操作：悬停、点击、输入
+                                otp_input.hover()
+                                human_like_delay(0.2, 0.4)
+                                otp_input.click()
+                                human_like_delay(0.3, 0.6)
+                                
+                                # 模拟人类输入验证码
+                                human_like_type(otp_input, token, min_delay=80, max_delay=200)
                                 print(f"✅ 使用选择器 {selector} 填入验证码")
+                                
+                                # 点击后随机延迟
+                                human_like_delay(0.5, 1.2)
                                 
                                 # 尝试提交表单
                                 submit_selectors = ["button[type='submit']", "input[type='submit']", "button:has-text('Verify')"]
                                 for submit_selector in submit_selectors:
                                     if page.locator(submit_selector).count() > 0:
-                                        page.click(submit_selector)
-                                        print(f"✅ 点击提交按钮: {submit_selector}")
+                                        submit_button = page.locator(submit_selector).first
+                                        submit_button.hover()
+                                        human_like_delay(0.3, 0.7)
+                                        submit_button.click()
+                                        print(f"✅ 点击验证按钮: {submit_selector}")
+                                        
+                                        # 提交后等待
+                                        human_like_delay(2.0, 3.5)
                                         break
                                 break
                                 
@@ -245,7 +384,7 @@ def run_login():
                     return execution_status, execution_details
 
             # 6. 处理授权确认页 (Authorize App)
-            time.sleep(5)
+            human_like_delay(4.0, 6.0)
             current_url = page.url.lower()
             
             if "authorize" in current_url or "oauth" in current_url:
@@ -261,15 +400,21 @@ def run_login():
                     
                     for selector in authorize_selectors:
                         if page.locator(selector).count() > 0:
-                            page.click(selector, timeout=5000)
+                            auth_button = page.locator(selector).first
+                            auth_button.hover()
+                            human_like_delay(0.3, 0.8)
+                            auth_button.click()
                             print(f"✅ 点击授权按钮: {selector}")
+                            
+                            # 点击后等待
+                            human_like_delay(2.5, 4.0)
                             break
                 except Exception as auth_error:
                     print(f"⚠️ 授权点击失败: {auth_error}")
 
             # 7. 等待最终跳转结果
             print("⏳ [Step 6] 等待跳转回 ClawCloud 控制台...")
-            time.sleep(10)
+            human_like_delay(8.0, 12.0)
             page.wait_for_load_state("networkidle")
             
             final_url = page.url
@@ -329,8 +474,10 @@ def run_login():
                 # 9.1 刷新页面确保所有资源加载完成
                 print("🔄 [步骤 9.1] 刷新页面...")
                 try:
+                    # 模拟人类刷新前的随机延迟
+                    human_like_delay(1.0, 2.5)
                     page.reload(wait_until="networkidle")
-                    time.sleep(5)
+                    human_like_delay(3.0, 5.0)
                     print("✅ 页面刷新完成")
                     
                     # 截图保存刷新后的页面
@@ -367,21 +514,26 @@ def run_login():
                                 
                                 print(f"✅ 找到 App Launchpad 按钮: {selector}")
                                 
-                                # 确保按钮可见且在视图中
+                                # 模拟人类操作：悬停、滚动、点击
+                                button.hover()
+                                human_like_delay(0.3, 0.8)
                                 button.scroll_into_view_if_needed()
-                                time.sleep(1)
+                                human_like_delay(0.5, 1.0)
                                 
                                 # 保存点击前的截图
                                 before_click_path = "before_app_launchpad_click.png"
                                 page.screenshot(path=before_click_path)
                                 print(f"📸 已保存点击前截图: {before_click_path}")
                                 
-                                # 点击按钮
+                                # 点击按钮前随机延迟
+                                human_like_delay(0.4, 0.9)
                                 button.click()
                                 print(f"✅ 点击 App Launchpad 按钮: {selector}")
                                 execution_details["app_launchpad_clicked"] = True
                                 button_found = True
                                 
+                                # 点击后等待
+                                human_like_delay(2.0, 3.5)
                                 break
                         except Exception as selector_error:
                             print(f"   ⚠️ 选择器 {selector} 失败: {selector_error}")
@@ -395,15 +547,25 @@ def run_login():
                         if all_launchpad_elements.count() > 0:
                             print(f"✅ 找到 {all_launchpad_elements.count()} 个包含 'Launchpad' 的元素")
                             
+                            # 模拟人类操作：悬停、滚动
+                            first_element = all_launchpad_elements.first
+                            first_element.hover()
+                            human_like_delay(0.3, 0.7)
+                            first_element.scroll_into_view_if_needed()
+                            
                             # 保存点击前的截图
                             before_click_path = "before_app_launchpad_click.png"
                             page.screenshot(path=before_click_path)
                             print(f"📸 已保存点击前截图: {before_click_path}")
                             
-                            all_launchpad_elements.first.click()
+                            # 点击前随机延迟
+                            human_like_delay(0.4, 0.8)
+                            first_element.click()
                             execution_details["app_launchpad_clicked"] = True
                             print("✅ 点击第一个包含 'Launchpad' 的元素")
                             
+                            # 点击后等待
+                            human_like_delay(2.0, 3.5)
                         else:
                             print("❌ 未找到任何 App Launchpad 相关元素")
                             execution_details["app_launchpad_clicked"] = False
@@ -417,6 +579,7 @@ def run_login():
                 try:
                     # 等待模态窗口出现
                     print("⏳ 等待模态窗口/弹出窗口出现...")
+                    human_like_delay(3.0, 5.0)
                     
                     # 方法1: 等待特定模态窗口元素
                     modal_selectors = [
@@ -443,7 +606,7 @@ def run_login():
                     # 方法2: 如果没有检测到标准模态元素，检查是否有新的UI元素出现
                     if not modal_detected:
                         print("⚠️ 未检测到标准模态窗口，检查是否有新内容出现...")
-                        time.sleep(3)  # 给更多时间加载
+                        human_like_delay(3.0, 5.0)  # 给更多时间加载
                         
                         # 检查是否有常见弹出窗口内容
                         popup_indicators = [
@@ -479,7 +642,7 @@ def run_login():
                         execution_details["app_launchpad_loaded"] = True
                         
                         # 等待一小段时间让模态窗口完全加载
-                        time.sleep(2)
+                        human_like_delay(2.0, 4.0)
                         
                         # 保存模态窗口截图
                         modal_screenshot_path = "app_launchpad_modal.png"
@@ -516,7 +679,7 @@ def run_login():
                         execution_details["app_launchpad_loaded"] = False
                         
                         # 无论如何保存当前页面截图
-                        time.sleep(2)
+                        human_like_delay(2.0, 3.0)
                         unknown_modal_path = "unknown_modal_state.png"
                         page.screenshot(path=unknown_modal_path)
                         print(f"📸 已保存当前状态截图: {unknown_modal_path}")
