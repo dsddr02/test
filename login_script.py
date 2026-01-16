@@ -50,6 +50,17 @@ def human_like_type(element, text, min_delay=30, max_delay=100):
         # 随机延迟，模拟人类打字速度
         time.sleep(random.uniform(min_delay/1000, max_delay/1000))
 
+def check_website_accessible(url, timeout=10):
+    """检查网站是否可访问"""
+    try:
+        response = requests.get(url, timeout=timeout, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        })
+        return response.status_code == 200
+    except Exception as e:
+        print(f"❌ 网站检查失败: {e}")
+        return False
+
 def run_login():
     # 获取环境变量中的敏感信息
     username = os.environ.get("GH_USERNAME")
@@ -92,37 +103,44 @@ def run_login():
                 args=[
                     '--no-sandbox',
                     '--disable-dev-shm-usage',
-                    '--disable-blink-features=AutomationControlled',  # 禁用自动化控制特征
-                    '--disable-web-security',  # 禁用同源策略（如果需要）
-                    '--disable-extensions',  # 禁用扩展
-                    '--disable-plugins',  # 禁用插件
-                    '--disable-sync',  # 禁用同步
-                    '--disable-default-apps',  # 禁用默认应用
-                    '--disable-translate',  # 禁用翻译
-                    '--disable-background-networking',  # 禁用后台网络
-                    '--disable-background-timer-throttling',  # 禁用后台定时器限制
-                    '--disable-backgrounding-occluded-windows',  # 禁用后台窗口遮挡
-                    '--disable-renderer-backgrounding',  # 禁用渲染器后台运行
-                    '--disable-features=TranslateUI,BlinkGenPropertyTrees'  # 禁用特定功能
-                ]
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-web-security',
+                    '--disable-extensions',
+                    '--disable-plugins',
+                    '--disable-sync',
+                    '--disable-default-apps',
+                    '--disable-translate',
+                    '--disable-background-networking',
+                    '--disable-background-timer-throttling',
+                    '--disable-backgrounding-occluded-windows',
+                    '--disable-renderer-backgrounding',
+                    '--disable-features=TranslateUI,BlinkGenPropertyTrees'
+                ],
+                # 增加超时时间
+                timeout=60000
             )
             
             # 创建上下文，指定临时用户数据目录，确保全新状态
             context = browser.new_context(
                 viewport={'width': 1920, 'height': 1080},
                 user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-                storage_state=None,  # 确保不加载任何存储状态
-                permissions=[],  # 禁用所有存储
+                storage_state=None,
+                permissions=[],
                 extra_http_headers={
                     'Accept-Language': 'en-US,en;q=0.9',
                     'Accept-Encoding': 'gzip, deflate, br',
                     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
                     'Cache-Control': 'no-cache',
-                }
+                },
+                # 增加上下文超时
+                timeout=60000
             )
             
             # 在新上下文中创建页面
             page = context.new_page()
+            
+            # 设置页面超时
+            page.set_default_timeout(60000)
             
             # 增强反检测脚本
             page.add_init_script("""
@@ -160,26 +178,53 @@ def run_login():
                 // 覆盖常见自动化检测属性
                 Object.defineProperty(document, 'hidden', { value: false });
                 Object.defineProperty(document, 'visibilityState', { value: 'visible' });
-
-                // 添加一些随机特征
-                Math.random = () => {
-                    const array = new Uint32Array(1);
-                    window.crypto.getRandomValues(array);
-                    return array[0] / (0xffffffff + 1);
-                };
             """)
 
-            # 2. 访问 ClawCloud 登录页
+            # 2. 检查网站是否可访问
             target_url = "https://us-west-1.run.claw.cloud/"
-            print(f"🌐 [Step 2] 正在访问: {target_url}")
+            print(f"🌐 [Step 2] 检查网站可访问性: {target_url}")
+            
+            # 首先使用 requests 检查网站是否可访问
+            print("🔍 使用 requests 检查网站...")
+            if not check_website_accessible(target_url):
+                print("⚠️ 网站可能无法访问或网络有问题，尝试继续...")
             
             # 清除可能存在的缓存和cookie
             context.clear_cookies()
             
-            page.goto(target_url, wait_until="networkidle")
+            print(f"🚀 正在访问: {target_url}")
+            
+            try:
+                # 使用更宽松的等待条件，避免因网络慢而超时
+                page.goto(
+                    target_url, 
+                    wait_until="domcontentloaded",  # 改为 domcontentloaded，不等待所有资源加载
+                    timeout=45000  # 增加到45秒
+                )
+                
+                # 等待页面基本加载
+                page.wait_for_load_state("domcontentloaded")
+                
+                print(f"✅ 页面基本加载完成，等待网络空闲...")
+                
+                # 尝试等待网络空闲，但设置超时
+                try:
+                    page.wait_for_load_state("networkidle", timeout=10000)
+                except:
+                    print("⚠️ 网络未完全空闲，继续执行...")
+                
+            except Exception as nav_error:
+                print(f"⚠️ 页面加载异常: {nav_error}")
+                # 尝试直接重试一次
+                try:
+                    print("🔄 尝试重新加载页面...")
+                    page.reload(wait_until="domcontentloaded", timeout=30000)
+                except Exception as retry_error:
+                    print(f"❌ 重新加载也失败: {retry_error}")
+                    raise nav_error
             
             # 模拟人类等待页面加载
-            delay = human_like_delay(1.5, 3.0)
+            delay = human_like_delay(2.0, 4.0)
             print(f"⏳ 随机延迟 {delay:.2f} 秒模拟人类浏览...")
 
             # 3. 点击 GitHub 登录按钮
@@ -199,7 +244,7 @@ def run_login():
                 for selector in login_selectors:
                     if page.locator(selector).count() > 0:
                         login_button = page.locator(selector).first
-                        login_button.wait_for(state="visible", timeout=10000)
+                        login_button.wait_for(state="visible", timeout=15000)
                         
                         # 模拟人类悬停操作
                         print("🖱️ 模拟悬停在 GitHub 按钮上...")
@@ -214,7 +259,7 @@ def run_login():
                         found_button = True
                         
                         # 点击后随机延迟
-                        human_like_delay(0.5, 1.5)
+                        human_like_delay(1.0, 2.5)
                         break
                 
                 if not found_button:
@@ -234,7 +279,16 @@ def run_login():
                 
                 if not found_button:
                     print("❌ 未找到 GitHub 登录按钮")
+                    # 截图并尝试其他方法
                     page.screenshot(path="login_error_no_button.png")
+                    
+                    # 检查页面内容
+                    page_content = page.content()
+                    if "GitHub" not in page_content:
+                        print("⚠️ 页面内容中没有找到 'GitHub' 文本")
+                        print(f"页面标题: {page.title()}")
+                        print(f"当前URL: {page.url}")
+                    
                     raise Exception("GitHub 登录按钮未找到")
                     
             except Exception as e:
@@ -242,8 +296,8 @@ def run_login():
                 # 尝试直接访问 GitHub OAuth URL
                 try:
                     print("🔄 尝试直接访问 GitHub OAuth URL...")
-                    page.goto("https://github.com/login/oauth/authorize?client_id=YOUR_CLIENT_ID&redirect_uri=https://us-west-1.run.claw.cloud/auth/callback/github")
-                    page.wait_for_load_state("networkidle")
+                    oauth_url = "https://github.com/login/oauth/authorize"
+                    page.goto(oauth_url, wait_until="domcontentloaded", timeout=30000)
                     human_like_delay(1.0, 2.0)
                 except Exception as oauth_error:
                     print(f"❌ OAuth 重定向也失败: {oauth_error}")
@@ -253,68 +307,97 @@ def run_login():
             print("⏳ [Step 4] 等待跳转到 GitHub...")
             try:
                 # 等待 URL 变更为 github.com
-                page.wait_for_url(lambda url: "github.com" in url, timeout=15000)
+                page.wait_for_url(
+                    lambda url: "github.com" in url, 
+                    timeout=20000,
+                    wait_until="domcontentloaded"
+                )
                 human_like_delay(1.0, 2.0)
                 
                 # 检查是否在登录页面
-                if "login" in page.url.lower():
+                current_url = page.url.lower()
+                if "login" in current_url or "signin" in current_url:
                     print("🔒 输入账号密码...")
                     # 等待登录字段加载
-                    page.wait_for_selector("#login_field", timeout=10000)
+                    try:
+                        page.wait_for_selector("#login_field", timeout=15000)
+                    except:
+                        # 尝试其他选择器
+                        page.wait_for_selector("input[name='login']", timeout=5000)
                     
                     # 模拟人类输入用户名
                     print("👤 模拟人类输入用户名...")
-                    user_input = page.locator('#login_field')
+                    user_input_selectors = ["#login_field", "input[name='login']", "input[type='text']"]
+                    user_input = None
                     
-                    # 点击输入框前随机延迟
-                    human_like_delay(0.3, 0.8)
-                    user_input.click()
-                    human_like_delay(0.2, 0.4)
-                    
-                    # 清空可能存在的文本
-                    user_input.fill("")
-                    human_like_delay(0.1, 0.3)
-                    
-                    # 模拟人类打字速度输入用户名
-                    human_like_type(user_input, username, min_delay=40, max_delay=120)
-                    print(f"✅ 用户名输入完成")
-                    human_like_delay(0.5, 1.0)
-                    
-                    # 模拟人类输入密码
-                    print("🔑 模拟人类输入密码...")
-                    pass_input = page.locator('#password')
-                    
-                    # 点击输入框前随机延迟
-                    human_like_delay(0.3, 0.8)
-                    pass_input.click()
-                    human_like_delay(0.2, 0.4)
-                    
-                    # 模拟人类打字速度输入密码
-                    human_like_type(pass_input, password, min_delay=50, max_delay=150)
-                    print(f"✅ 密码输入完成")
-                    human_like_delay(0.8, 1.5)
-                    
-                    # 找到并点击登录按钮
-                    print("🖱️ 准备点击登录按钮...")
-                    commit_button_selectors = [
-                        "input[name='commit']",
-                        "button[type='submit']",
-                        "button:has-text('Sign in')",
-                        "[value='Sign in']"
-                    ]
-                    
-                    for selector in commit_button_selectors:
+                    for selector in user_input_selectors:
                         if page.locator(selector).count() > 0:
-                            # 悬停并延迟后点击
-                            commit_button = page.locator(selector).first
-                            commit_button.hover()
-                            human_like_delay(0.3, 0.7)
-                            commit_button.click()
-                            print(f"✅ 登录表单已提交 (使用选择器: {selector})")
+                            user_input = page.locator(selector).first
                             break
+                    
+                    if user_input:
+                        # 点击输入框前随机延迟
+                        human_like_delay(0.3, 0.8)
+                        user_input.click()
+                        human_like_delay(0.2, 0.4)
+                        
+                        # 清空可能存在的文本
+                        user_input.fill("")
+                        human_like_delay(0.1, 0.3)
+                        
+                        # 模拟人类打字速度输入用户名
+                        human_like_type(user_input, username, min_delay=40, max_delay=120)
+                        print(f"✅ 用户名输入完成")
+                        human_like_delay(0.5, 1.0)
+                        
+                        # 模拟人类输入密码
+                        print("🔑 模拟人类输入密码...")
+                        pass_input_selectors = ["#password", "input[name='password']", "input[type='password']"]
+                        pass_input = None
+                        
+                        for selector in pass_input_selectors:
+                            if page.locator(selector).count() > 0:
+                                pass_input = page.locator(selector).first
+                                break
+                        
+                        if pass_input:
+                            # 点击输入框前随机延迟
+                            human_like_delay(0.3, 0.8)
+                            pass_input.click()
+                            human_like_delay(0.2, 0.4)
+                            
+                            # 模拟人类打字速度输入密码
+                            human_like_type(pass_input, password, min_delay=50, max_delay=150)
+                            print(f"✅ 密码输入完成")
+                            human_like_delay(0.8, 1.5)
+                            
+                            # 找到并点击登录按钮
+                            print("🖱️ 准备点击登录按钮...")
+                            commit_button_selectors = [
+                                "input[name='commit']",
+                                "button[type='submit']",
+                                "button:has-text('Sign in')",
+                                "[value='Sign in']"
+                            ]
+                            
+                            for selector in commit_button_selectors:
+                                if page.locator(selector).count() > 0:
+                                    # 悬停并延迟后点击
+                                    commit_button = page.locator(selector).first
+                                    commit_button.hover()
+                                    human_like_delay(0.3, 0.7)
+                                    commit_button.click()
+                                    print(f"✅ 登录表单已提交 (使用选择器: {selector})")
+                                    break
+                        else:
+                            print("❌ 未找到密码输入框")
+                    else:
+                        print("❌ 未找到用户名输入框")
                     
                     # 点击后随机延迟
                     human_like_delay(2.0, 3.5)
+                else:
+                    print(f"ℹ️ 当前不在登录页面，URL: {current_url}")
             except Exception as e:
                 print(f"ℹ️ GitHub 表单处理异常: {e}")
                 page.screenshot(path="github_form_error.png")
@@ -327,7 +410,20 @@ def run_login():
             current_url = page.url
             print(f"🔗 当前 URL: {current_url}")
             
-            if "two-factor" in current_url or "two_factor" in current_url or page.locator("#app_totp").count() > 0 or page.locator("#otp").count() > 0:
+            two_factor_detected = False
+            for term in ["two-factor", "two_factor", "app_totp", "otp"]:
+                if term in current_url.lower():
+                    two_factor_detected = True
+                    break
+            
+            if not two_factor_detected:
+                # 检查页面元素
+                for selector in ["#app_totp", "#otp", "input[name='otp']"]:
+                    if page.locator(selector).count() > 0:
+                        two_factor_detected = True
+                        break
+            
+            if two_factor_detected:
                 print("🔐 检测到 2FA 双重验证请求！")
                 
                 if totp_secret:
@@ -415,7 +511,11 @@ def run_login():
             # 7. 等待最终跳转结果
             print("⏳ [Step 6] 等待跳转回 ClawCloud 控制台...")
             human_like_delay(8.0, 12.0)
-            page.wait_for_load_state("networkidle")
+            
+            try:
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+            except:
+                print("⚠️ 页面加载超时，继续执行...")
             
             final_url = page.url
             execution_details["final_url"] = final_url
@@ -476,7 +576,7 @@ def run_login():
                 try:
                     # 模拟人类刷新前的随机延迟
                     human_like_delay(1.0, 2.5)
-                    page.reload(wait_until="networkidle")
+                    page.reload(wait_until="domcontentloaded", timeout=30000)
                     human_like_delay(3.0, 5.0)
                     print("✅ 页面刷新完成")
                     
@@ -510,7 +610,7 @@ def run_login():
                         try:
                             if page.locator(selector).count() > 0:
                                 button = page.locator(selector).first
-                                button.wait_for(state="visible", timeout=10000)
+                                button.wait_for(state="visible", timeout=15000)
                                 
                                 print(f"✅ 找到 App Launchpad 按钮: {selector}")
                                 
@@ -718,6 +818,13 @@ def run_login():
             execution_status = "failed"
             execution_details["success"] = False
             execution_details["error_message"] = str(e)
+            
+            # 尝试截图保存错误状态
+            try:
+                page.screenshot(path="final_error.png")
+                print("📸 已保存错误状态截图: final_error.png")
+            except:
+                pass
             
         finally:
             # 确保浏览器关闭
