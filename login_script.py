@@ -1,5 +1,3 @@
-# 文件名: login_script.py
-# 作用: 自动登录 ClawCloud Run，支持 GitHub 账号密码 + 2FA 自动验证
 
 import os
 import time
