@@ -116,8 +116,7 @@ def run_login():
                     '--disable-renderer-backgrounding',
                     '--disable-features=TranslateUI,BlinkGenPropertyTrees'
                 ],
-                # 增加超时时间
-                timeout=60000
+              
             )
             
             # 创建上下文，指定临时用户数据目录，确保全新状态
