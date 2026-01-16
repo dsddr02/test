@@ -3,7 +3,7 @@ name: Clawed4
 
 on:
   schedule:
-    - cron: '0 16 13,26 * *'
+    - cron: '0 16 8,22 * *'
   workflow_dispatch:
 
 jobs:
@@ -33,7 +33,7 @@ jobs:
           GH_BOTTOKEN: ${{ secrets.GH_BOTTOKEN }}
           GH_CHATID: ${{ secrets.GH_CHATID }}
           ZANGHU: ${{ secrets.ZANGHUed }}
-        run: python -u 222.py
+        run: python -u login_script.py
 
       - name: Upload Debug Screenshot
         if: always()
@@ -43,4 +43,4 @@ jobs:
           path: |
             *.png
             
-          retention-days: 7
+          retention-days: 3
