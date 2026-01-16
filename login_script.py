@@ -131,8 +131,7 @@ def run_login():
                     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
                     'Cache-Control': 'no-cache',
                 },
-                # 增加上下文超时
-                timeout=60000
+                
             )
             
             # 在新上下文中创建页面
