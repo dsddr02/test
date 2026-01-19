@@ -1,7 +1,10 @@
+# 文件名: login_script.py
+# 作用: 自动登录 ClawCloud Run，支持 GitHub 账号密码 + 2FA 自动验证
 
 import os
 import time
 import random
+import re
 import shutil
 import tempfile
 import requests  # 添加 requests 库用于 Telegram API
@@ -76,6 +79,7 @@ def run_login():
         "error_message": "",
         "final_url": "",
         "page_title": "",
+        "balance": "未提取",  # 添加余额字段
         "app_launchpad_clicked": False,
         "app_launchpad_loaded": False,
         "app_launchpad_modal_detected": False
@@ -114,7 +118,8 @@ def run_login():
                     '--disable-renderer-backgrounding',
                     '--disable-features=TranslateUI,BlinkGenPropertyTrees'
                 ],
-              
+                # 增加超时时间
+                timeout=60000
             )
             
             # 创建上下文，指定临时用户数据目录，确保全新状态
@@ -128,8 +133,7 @@ def run_login():
                     'Accept-Encoding': 'gzip, deflate, br',
                     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
                     'Cache-Control': 'no-cache',
-                },
-                
+                }
             )
             
             # 在新上下文中创建页面
@@ -584,8 +588,91 @@ def run_login():
                 except Exception as refresh_error:
                     print(f"⚠️ 刷新页面时出错: {refresh_error}")
                 
-                # 9.2 查找并点击 "App Launchpad" 按钮
-                print("🔍 [步骤 9.2] 查找 App Launchpad 按钮...")
+                # 9.2 尝试提取账户余额
+                print("💰 [步骤 9.2] 尝试提取账户余额...")
+                try:
+                    # 多种方式查找余额元素
+                    balance_selectors = [
+                        "text=/$[0-9.,]+",  # 正则表达式匹配美元金额
+                        "text=/¥[0-9.,]+",  # 正则表达式匹配人民币金额
+                        "text=/€[0-9.,]+",  # 正则表达式匹配欧元金额
+                        "text=/£[0-9.,]+",  # 正则表达式匹配英镑金额
+                        "text=/\\$[0-9.,]+",  # 匹配 $ 开头的金额
+                        "[class*='balance']",
+                        "[class*='credit']",
+                        "[class*='amount']",
+                        "[data-testid*='balance']",
+                        "[aria-label*='balance']",
+                        "//*[contains(text(), '$') and not(contains(text(), '$$'))]",  # 包含 $ 但不包含 $$
+                    ]
+
+                    balance_found = False
+                    raw_balance = "未找到"
+                    
+                    for selector in balance_selectors:
+                        try:
+                            if page.locator(selector).count() > 0:
+                                balance_elem = page.locator(selector).first
+                                raw_balance = balance_elem.inner_text(timeout=5000).strip()
+                                
+                                # 清理和格式化余额文本
+                                if "$" in raw_balance or "€" in raw_balance or "¥" in raw_balance or "£" in raw_balance:
+                                    # 提取金额部分
+                                    # 匹配货币符号和数字
+                                    currency_match = re.search(r'([$€¥£])\s*([0-9,]+(?:\.[0-9]+)?)', raw_balance)
+                                    if currency_match:
+                                        currency_symbol = currency_match.group(1)
+                                        amount = currency_match.group(2)
+                                        raw_balance = f"{currency_symbol}{amount}"
+                                    
+                                    print(f"💰 使用选择器找到余额: {selector}")
+                                    print(f"💵 提取到的余额: {raw_balance}")
+                                    balance_found = True
+                                    break
+                        except Exception as e:
+                            continue
+                    
+                    if not balance_found:
+                        # 尝试查找任何包含货币符号的文本
+                        print("🔍 未找到标准余额元素，尝试查找包含货币符号的文本...")
+                        try:
+                            # 获取页面所有文本
+                            page_text = page.content()
+                            
+                            # 使用正则表达式查找货币金额
+                            currency_patterns = [
+                                r'\$\s*[\d,]+(?:\.\d{2})?',  # $ 123.45
+                                r'€\s*[\d,]+(?:\.\d{2})?',   # € 123.45
+                                r'¥\s*[\d,]+(?:\.\d{2})?',   # ¥ 123.45
+                                r'£\s*[\d,]+(?:\.\d{2})?',   # £ 123.45
+                            ]
+                            
+                            for pattern in currency_patterns:
+                                matches = re.findall(pattern, page_text)
+                                if matches:
+                                    # 取第一个匹配项
+                                    raw_balance = matches[0].strip()
+                                    print(f"💵 正则匹配到的余额: {raw_balance}")
+                                    balance_found = True
+                                    break
+                        except Exception as e:
+                            print(f"⚠️ 正则匹配余额失败: {e}")
+                    
+                    # 保存到执行详情中
+                    execution_details["balance"] = raw_balance if balance_found else "未找到"
+                    
+                    if balance_found:
+                        print(f"✅ 成功提取余额: {raw_balance}")
+                    else:
+                        print("⚠️ 未能提取到余额信息")
+                        
+                except Exception as balance_error:
+                    print(f"❌ 提取余额时出错: {balance_error}")
+                    execution_details["balance"] = "提取失败"
+                    page.screenshot(path="balance_error.png")
+                
+                # 9.3 查找并点击 "App Launchpad" 按钮
+                print("🔍 [步骤 9.3] 查找 App Launchpad 按钮...")
                 try:
                     # 多种选择器来查找 App Launchpad 按钮
                     app_launchpad_selectors = [
@@ -670,8 +757,8 @@ def run_login():
                     print(f"❌ 点击 App Launchpad 按钮时出错: {app_error}")
                     execution_details["app_launchpad_clicked"] = False
                 
-                # 9.3 等待并验证 App Launchpad 模态窗口加载
-                print("🔍 [步骤 9.3] 等待 App Launchpad 模态窗口加载...")
+                # 9.4 等待并验证 App Launchpad 模态窗口加载
+                print("🔍 [步骤 9.4] 等待 App Launchpad 模态窗口加载...")
                 try:
                     # 等待模态窗口出现
                     print("⏳ 等待模态窗口/弹出窗口出现...")
@@ -885,7 +972,7 @@ def main():
             status_text = "失败"
             app_status = "未执行"
         
-        # 构建通知消息
+        # 构建通知消息（添加余额信息）
         message = f"""
 <b>ClawCloud 自动登录 {emoji}</b>
 
@@ -894,6 +981,7 @@ def main():
 📅 <b>开始时间:</b> {details['start_time']}
 🌐 <b>最终URL:</b> {details['final_url'][:100]}...
 📄 <b>页面标题:</b> {details['page_title'][:50]}
+💰 <b>账户余额:</b> {details.get('balance', '未提取')}
 🚀 <b>App Launchpad:</b> {app_status}
         """
         
@@ -909,6 +997,7 @@ def main():
         print(f"\n📤 准备发送 Telegram 通知...")
         print(f"   状态: {status_text}")
         print(f"   时长: {execution_duration}秒")
+        print(f"   账户余额: {details.get('balance', '未提取')}")
         print(f"   App Launchpad 状态: {app_status}")
         
         # 发送 Telegram 通知（如果配置了）
