@@ -68,8 +68,8 @@ def check_login_success(page, final_url, page_text, page_title):
     else:
         print("⚠️ 页面标题为空，可能未完全加载或未登录成功")
     
-    # 关键检查点2: 必须包含 "App Launchpad" 或类似关键元素
-    critical_keywords = ["App Launchpad", "Launchpad", "Dashboard", "Console"]
+    # 关键检查点2: 必须包含关键元素
+    critical_keywords = ["App Launchpad", "Launchpad", "Dashboard", "Console", "ClawCloud"]
     found_critical = False
     for keyword in critical_keywords:
         if keyword.lower() in page_text.lower():
@@ -78,18 +78,21 @@ def check_login_success(page, final_url, page_text, page_title):
             is_success = True
     
     if not found_critical:
-        print("⚠️ 未找到关键文本（App Launchpad/Launchpad/Dashboard/Console），可能登录未成功")
+        print("⚠️ 未找到关键文本，可能登录未成功")
         is_success = False
     
     # 检查点3: URL不能包含错误或登录相关词
-    if "error" in final_url.lower() or "login" in final_url.lower():
+    if "error" in final_url.lower() or "login" in final_url.lower() or "two-factor" in final_url.lower():
         print(f"⚠️ URL包含错误或登录相关词: {final_url}")
         is_success = False
     
     # 检查点4: 页面包含导航元素（登录成功后的特征）
-    if page.locator("nav, header, footer, .dashboard, .sidebar").count() > 0:
-        success_indicators.append("找到页面导航元素")
-        is_success = True
+    try:
+        if page.locator("nav, header, footer, .dashboard, .sidebar").count() > 0:
+            success_indicators.append("找到页面导航元素")
+            is_success = True
+    except:
+        pass
     
     return is_success, success_indicators
 
@@ -119,10 +122,6 @@ def perform_login_attempt(attempt_number, username, password, totp_secret):
     temp_user_data_dir = tempfile.mkdtemp(prefix=f"browser_temp_{attempt_number}_")
     
     try:
-        browser = None
-        context = None
-        page = None
-        
         with sync_playwright() as p:
             browser = p.chromium.launch(
                 headless=True,
@@ -271,13 +270,13 @@ def perform_login_attempt(attempt_number, username, password, totp_secret):
             
             # 处理 2FA
             human_like_delay(3.0, 5.0)
+            
+            # 检查是否在2FA页面
+            two_factor_detected = False
             current_url = page.url
             
-            two_factor_detected = False
-            for term in ["two-factor", "two_factor", "app_totp", "otp"]:
-                if term in current_url.lower():
-                    two_factor_detected = True
-                    break
+            if "two-factor" in current_url.lower() or "sessions/two-factor" in current_url.lower():
+                two_factor_detected = True
             
             if not two_factor_detected:
                 if page.locator("#app_totp").count() > 0:
@@ -290,6 +289,7 @@ def perform_login_attempt(attempt_number, username, password, totp_secret):
                     token = totp.now()
                     print(f"   生成的验证码: {token}")
                     
+                    # 输入验证码
                     otp_input = page.locator("#app_totp").first
                     otp_input.hover()
                     human_like_delay(0.2, 0.4)
@@ -297,41 +297,63 @@ def perform_login_attempt(attempt_number, username, password, totp_secret):
                     human_like_type(otp_input, token, min_delay=80, max_delay=200)
                     print(f"✅ 填入验证码")
                     
-                    human_like_delay(0.5, 1.2)
-                    submit_button = page.locator("button[type='submit']").first
-                    submit_button.hover()
-                    human_like_delay(0.3, 0.7)
-                    submit_button.click()
-                    print(f"✅ 点击验证按钮")
+                    human_like_delay(1.0, 2.0)
                     
-                    human_like_delay(2.0, 3.5)
+                    # 重要修改：检查页面是否自动跳转，而不是强制点击按钮
+                    print("⏳ 等待页面自动跳转...")
+                    
+                    # 等待页面跳转（最多等待15秒）
+                    try:
+                        # 等待URL变化，不再包含 two-factor
+                        page.wait_for_url(
+                            lambda url: "two-factor" not in url.lower() and "sessions" not in url.lower(),
+                            timeout=15000
+                        )
+                        print("✅ 页面已自动跳转，验证成功")
+                    except:
+                        # 如果没有自动跳转，尝试手动点击提交按钮
+                        print("⚠️ 页面未自动跳转，尝试手动点击提交按钮...")
+                        try:
+                            submit_button = page.locator("button[type='submit']").first
+                            submit_button.wait_for(state="visible", timeout=5000)
+                            submit_button.hover()
+                            human_like_delay(0.3, 0.7)
+                            submit_button.click()
+                            print(f"✅ 手动点击验证按钮")
+                            human_like_delay(2.0, 3.5)
+                        except:
+                            print("⚠️ 未找到提交按钮，继续等待...")
                 else:
                     raise Exception("2FA 密钥未配置")
+            else:
+                print("ℹ️ 未检测到 2FA 验证")
             
-            # 处理授权
-            human_like_delay(4.0, 6.0)
+            # 处理授权确认页
+            human_like_delay(3.0, 5.0)
             current_url = page.url.lower()
             
             if "authorize" in current_url or "oauth" in current_url:
                 print("⚠️ 检测到授权请求，尝试点击 Authorize...")
                 try:
                     auth_button = page.locator("button:has-text('Authorize')").first
+                    auth_button.wait_for(state="visible", timeout=10000)
                     auth_button.hover()
                     human_like_delay(0.3, 0.8)
                     auth_button.click()
                     print(f"✅ 点击授权按钮")
                     human_like_delay(2.5, 4.0)
                 except:
-                    pass
+                    print("⚠️ 未找到授权按钮，可能已授权")
             
-            # 等待跳转
+            # 等待最终跳转
             print("⏳ 等待跳转回 ClawCloud...")
-            human_like_delay(8.0, 12.0)
+            human_like_delay(5.0, 8.0)
             
+            # 等待页面稳定
             try:
                 page.wait_for_load_state("domcontentloaded", timeout=15000)
             except:
-                print("⚠️ 页面加载超时")
+                print("⚠️ 页面加载超时，继续执行...")
             
             final_url = page.url
             attempt_details["final_url"] = final_url
@@ -342,6 +364,9 @@ def perform_login_attempt(attempt_number, username, password, totp_secret):
             
             # 保存截图
             page.screenshot(path=f"login_result_attempt_{attempt_number}.png")
+            
+            # 等待一下让页面完全渲染
+            human_like_delay(2.0, 3.0)
             
             # 检查是否真正登录成功
             page_text = page.content()
@@ -357,13 +382,16 @@ def perform_login_attempt(attempt_number, username, password, totp_secret):
                 # 执行后续操作（余额提取、App Launchpad等）
                 perform_post_login_actions(page, attempt_details)
                 
-                # 返回成功，并返回浏览器对象供清理
+                # 返回成功
                 return True, attempt_details, browser, context, page
             else:
                 print(f"❌ 第 {attempt_number} 次尝试登录失败")
                 print(f"   失败原因: 未检测到登录成功标志")
                 attempt_details["error_message"] = "登录验证失败"
-                return False, attempt_details, browser, context, page
+                
+                # 关闭浏览器
+                browser.close()
+                return False, attempt_details, None, None, None
                 
     except Exception as e:
         print(f"❌ 第 {attempt_number} 次尝试发生异常: {e}")
@@ -485,7 +513,7 @@ def perform_post_login_actions(page, details):
             print("🔍 [步骤 4] 等待 App Launchpad 模态窗口加载...")
             human_like_delay(3.0, 5.0)
             
-            modal_selectors = [".modal", ".modal-dialog", "[role='dialog']"]
+            modal_selectors = [".modal", ".modal-dialog", "[role='dialog']", ".ant-modal", ".el-dialog"]
             modal_detected = False
             
             for selector in modal_selectors:
@@ -495,7 +523,7 @@ def perform_post_login_actions(page, details):
             
             if not modal_detected:
                 page_text = page.content()
-                if "Memory" in page_text or "CPU" in page_text:
+                if "Memory" in page_text or "CPU" in page_text or "Status" in page_text:
                     modal_detected = True
             
             details["app_launchpad_modal_detected"] = modal_detected
@@ -505,7 +533,7 @@ def perform_post_login_actions(page, details):
                 print("✅ App Launchpad 模态窗口已检测到")
                 page.screenshot(path="app_launchpad_modal.png")
             else:
-                print("⚠️ 未检测到模态窗口")
+                print("⚠️ 未检测到模态窗口，但可能已打开")
                 
     except Exception as app_error:
         print(f"❌ App Launchpad 操作失败: {app_error}")
@@ -544,73 +572,42 @@ def main():
     # 重试循环
     attempt = 1
     last_details = None
-    browser = None
-    context = None
-    page = None
     
     while attempt <= max_retries:
-        try:
-            success, details, br, ctx, pg = perform_login_attempt(attempt, username, password, totp_secret)
-            last_details = details
+        success, details, browser, context, page = perform_login_attempt(attempt, username, password, totp_secret)
+        last_details = details
+        
+        if success:
+            print(f"\n🎉 登录成功！共尝试 {attempt} 次")
+            execution_status = "success"
             
-            # 清理之前的浏览器实例（如果存在）
+            # 清理浏览器
+            if browser:
+                try:
+                    browser.close()
+                except:
+                    pass
+            break
+        else:
+            print(f"\n⚠️ 第 {attempt} 次尝试失败")
+            
+            # 清理浏览器（如果还没关闭）
             if browser:
                 try:
                     browser.close()
                 except:
                     pass
             
-            # 保存当前尝试的浏览器对象
-            browser = br
-            context = ctx
-            page = pg
-            
-            if success:
-                print(f"\n🎉 登录成功！共尝试 {attempt} 次")
-                execution_status = "success"
-                break
-            else:
-                print(f"\n⚠️ 第 {attempt} 次尝试失败")
-                
-                # 清理当前浏览器实例
-                if br:
-                    try:
-                        br.close()
-                    except:
-                        pass
-                
-                if attempt < max_retries:
-                    wait_time = random.uniform(10, 30)
-                    print(f"⏳ 等待 {wait_time:.1f} 秒后重试...")
-                    time.sleep(wait_time)
-                else:
-                    print(f"❌ 已达到最大重试次数 ({max_retries})，登录失败")
-                    execution_status = "failed"
-                    break
-                    
-        except Exception as e:
-            print(f"💥 第 {attempt} 次尝试发生未捕获异常: {e}")
-            if attempt >= max_retries:
-                execution_status = "failed"
-                if not last_details:
-                    last_details = {
-                        "start_time": time.strftime("%Y-%m-%d %H:%M:%S"),
-                        "error_message": str(e)
-                    }
-                break
-            else:
-                wait_time = random.uniform(15, 45)
+            if attempt < max_retries:
+                wait_time = random.uniform(10, 30)
                 print(f"⏳ 等待 {wait_time:.1f} 秒后重试...")
                 time.sleep(wait_time)
+            else:
+                print(f"❌ 已达到最大重试次数 ({max_retries})，登录失败")
+                execution_status = "failed"
+                break
         
         attempt += 1
-    
-    # 最终清理
-    if browser:
-        try:
-            browser.close()
-        except:
-            pass
     
     # 计算执行时长
     end_time = time.time()
@@ -636,7 +633,7 @@ def main():
 <b>ClawCloud 自动登录 {emoji}</b>
 
 📊 <b>执行结果:</b> {status_text}
-🔄 <b>重试次数:</b> {attempt - 1}/{max_retries}
+🔄 <b>重试次数:</b> {attempt}/{max_retries}
 ⏱️ <b>执行时长:</b> {execution_duration}秒
 📅 <b>开始时间:</b> {last_details['start_time']}
 🌐 <b>最终URL:</b> {last_details.get('final_url', 'N/A')[:100]}...
@@ -664,7 +661,7 @@ def main():
     
     print(f"\n📤 准备发送 Telegram 通知...")
     print(f"   状态: {status_text}")
-    print(f"   重试次数: {attempt - 1}/{max_retries}")
+    print(f"   重试次数: {attempt}/{max_retries}")
     
     # 发送 Telegram 通知
     if tele_bottoken and tele_chatid:
