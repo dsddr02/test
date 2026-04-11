@@ -328,7 +328,7 @@ def perform_login_attempt(attempt_number, username, password, totp_secret):
                     human_like_delay(1.0, 2.0)
                     
                     # 截图（输入账号密码后）
-                    take_screenshot(page, f"step3_credentials_entered_attempt_{attempt_number}.png", "输入账号密码后")
+                    # take_screenshot(page, f"step3_credentials_entered_attempt_{attempt_number}.png", "输入账号密码后")
                     
                     # 点击登录
                     commit_button = page.locator("input[name='commit']").first
