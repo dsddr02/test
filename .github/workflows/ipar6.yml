@@ -8,10 +8,10 @@ jobs:
   screenshot:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       - run: pip install cloakbrowser fake-useragent
       - run: python your_script.py
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v7
         with:
           name: screenshots
           path: screenshots/
