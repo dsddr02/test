@@ -2,7 +2,7 @@ import time
 import random
 import logging
 from pathlib import Path
-from cloakbrowser import launch  
+from cloakbrowser import launch
 from fake_useragent import UserAgent
 
 logging.basicConfig(
