@@ -3,6 +3,7 @@ name: Daily Screenshot
 on:
   schedule:
     - cron: '24 6 * * *'  # 每天8点运行
+  workflow_dispatch:
 jobs:
   screenshot:
     runs-on: ubuntu-latest
