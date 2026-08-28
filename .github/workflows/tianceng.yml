@@ -92,9 +92,12 @@ jobs:
             exit 0
           fi
 
-          # 3. 解析节点，只筛选 JP 区域
+          # 3. 解析节点，只筛选 JP 区域，并依次编号
           echo "数据校验通过，开始解析节点..."
           rm -f valid_ipsyd.tmp
+          
+          # 初始化计数器
+          counter=0
           
           echo "$decoded_data" | while IFS= read -r line; do
             if [[ -z "$line" ]]; then continue; fi
@@ -111,10 +114,12 @@ jobs:
             
             # 判断是否为 JP 区域（日本）
             if [[ "$remark" =~ "日本" || "$remark" =~ "JP" || "$remark" =~ "🇯🇵" ]]; then 
-                # 只保留 JP 区域的节点，格式为 ip:port#天诚
+                # 只保留 JP 区域的节点，格式为 ip:port#天诚N
                 if [[ -n "$ip_port" ]]; then
-                  echo "${ip_port}#天诚" >> valid_ipsyd.tmp
-                  echo "✅ 添加 JP 节点: ${ip_port}"
+                  # 计数器递增（使用文件来保持跨进程的计数）
+                  counter=$((counter + 1))
+                  echo "${ip_port}#天诚${counter}" >> valid_ipsyd.tmp
+                  echo "✅ 添加 JP 节点: ${ip_port}#天诚${counter}"
                 fi
             fi
           done
@@ -147,7 +152,7 @@ jobs:
               cp valid_ipsyd.tmp valid_ipsyd.txt
               echo "✅ 已生成 valid_ipsyd.txt，共 $(wc -l < valid_ipsyd.txt) 个节点"
             else
-              echo "⚠️ 未找到任何 JP 节点"
+              echo "⚠️ 未找到任何"
               echo "changes_detected=false" >> $GITHUB_ENV
               exit 0
             fi
@@ -163,5 +168,5 @@ jobs:
         if: env.changes_detected == 'true'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "更新 JP 节点 ${{ env.COMMIT_TIME }}"
+          commit_message: "更新 ${{ env.COMMIT_TIME }}"
           file_pattern: 'valid_ipsyd.txt old/*.txt'
