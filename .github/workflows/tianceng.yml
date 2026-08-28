@@ -2,7 +2,8 @@ name: tiancheng1
 
 on:
   workflow_dispatch:
-
+  schedule:
+    - cron: '0 06,18 * * *'
 permissions:
   contents: write
 
@@ -11,10 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.9'
 
@@ -114,12 +115,12 @@ jobs:
             
             # 判断是否为 JP 区域（日本）
             if [[ "$remark" =~ "日本" || "$remark" =~ "JP" || "$remark" =~ "🇯🇵" ]]; then 
-                # 只保留 JP 区域的节点，格式为 ip:port#天诚N
+                # 只保留 JP 区域的，格式为 ip:port#天诚N
                 if [[ -n "$ip_port" ]]; then
                   # 计数器递增（使用文件来保持跨进程的计数）
                   counter=$((counter + 1))
                   echo "${ip_port}#天诚${counter}" >> valid_ipsyd.tmp
-                  echo "✅ 添加 JP 节点: ${ip_port}#天诚${counter}"
+                  echo "✅ 添加 JP: ${ip_port}#天诚${counter}"
                 fi
             fi
           done
