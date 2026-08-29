@@ -1,45 +1,60 @@
-# 文件名: .github/workflows/clawcloud-login.yml
-name: fewfcaw
-
 on:
   schedule:
-    - cron: '0 14 11,26 * *'
+    - cron: '30 02 * * *'   # UTC 02:30 (北京时间 10:30)
   workflow_dispatch:
 
+permissions:
+  actions: write
+  contents: write
+
 jobs:
-  auto-login:
-    runs-on: ubuntu-latest
-
+  sign-job:
+    name: sign-job-name
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+    - name: Set up Python
+      # 注意：官方 setup-python 目前最新稳定版是 v5，v6 会引发 action not found 错误
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+        
+    - name: Install tg-signer
+      run: |
+        pip3 install tg-signer
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
+    - name: Sign
+      env:
+        SESSION_STRING: ${{ secrets.SESSION_STRING }}
+        TASK_MAP: ${{ secrets.TASK_MAP }}
+      shell: bash   # 关键：显式声明使用 bash，避免默认 sh 解析语法报错
+      run: |
+        # 使用 jq -c 逐行解析 JSON，彻底避开之前 Tab 分隔符带来的 Shell 语法坑
+        echo "$TASK_MAP" | jq -c 'to_entries[]' | while IFS= read -r entry; do
+            key=$(echo "$entry" | jq -r '.key')
+            value_json=$(echo "$entry" | jq -r '.value | tojson')
+            
+            task_path=".signer/signs/${key}"
+            mkdir -p "${task_path}"
+            config_name="${task_path}/config.json"
+            
+            # 写入任务配置
+            echo "$value_json" | jq . > "$config_name"
+            
+            # 将你的 b64 session 字符串直接传给 --session-string 执行签到
+            tg-signer --session-string "$SESSION_STRING" run-once "${key}" > /dev/null 2>&1
+        done
 
-      - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install playwright pyotp requests
-          playwright install chromium
+    - name: 拉取代码
+      uses: actions/checkout@v4
+      with:
+        persist-credentials: true
+        fetch-depth: 0
 
-      - name: Run Login Script
-        env:
-          GH_USERNAME: ${{ secrets.GH_USERNAMEfe }}
-          GH_PASSWORD: ${{ secrets.GH_PASSWORDfe }}
-          GH_2FA_SECRET: ${{ secrets.GH_2FA_SECRETfe }}
-          GH_BOTTOKEN: ${{ secrets.GH_BOTTOKEN }}
-          GH_CHATID: ${{ secrets.GH_CHATID }}
-          ZANGHU: ${{ secrets.ZANGHUFE }}
-        run: python -u login_script.py
-
-      - name: Upload Debug Screenshot
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: login-result
-          path: |
-            *.png
-          retention-days: 3
+    - name: 自动续命 Actions (防止60天禁用)
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git commit --allow-empty -m "auto keep actions alive (no code change)"
+        git push origin main
