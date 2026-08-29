@@ -27,7 +27,7 @@ jobs:
         import base64
         import struct
         
-        session_string = os.environ.get('SESSION_STRING', '')
+        session_string = os.environ.get('SESSION_STRING')
         if not session_string:
             print("Error: SESSION_STRING is empty")
             exit(1)
