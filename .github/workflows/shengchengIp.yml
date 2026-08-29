@@ -1,4 +1,4 @@
-name: tiancheng1
+name: jpyoux
 
 on:
   workflow_dispatch:
@@ -39,7 +39,7 @@ jobs:
                       'desktop': True
                   }
               )
-              url = "https://honghong.yyylll.kdns.fr/sub/user/eyJ1IjoiZnVodSIsImUiOjE3OTA1NzQ2Mzc3MjUsInMiOiJkNWU2ZjA1YmNlZDliMzgwIn0?protocol=default"
+              url = "https://vl.cm.soso.edu.kg/sub?uuid=00000000-0000-4000-8000-000000000000&host=example.com"
               try:
                   res = scraper.get(url, timeout=10)
                   if res.status_code == 200:
@@ -143,10 +143,7 @@ jobs:
 
           if [ "$SHOULD_COMMIT" = true ]; then
             # 备份旧文件
-            if [ -f "$OLD_FILE" ]; then
-              mkdir -p old
-              cp "$OLD_FILE" "old/$(TZ='Asia/Shanghai' date +%Y-%m-%d-%H_%M_%S)_valid_ipsyd.txt"
-            fi
+            
             
             # 复制新文件到根目录
             if [ -f valid_ipsyd.tmp ]; then
@@ -170,4 +167,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "更新 ${{ env.COMMIT_TIME }}"
-          file_pattern: 'valid_ipsyd.txt old/*.txt'
+          file_pattern: 'valid_ipsyd.txt'
