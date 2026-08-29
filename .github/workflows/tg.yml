@@ -29,7 +29,7 @@ jobs:
             config_name="${task_path}/config.json"
             echo "$value_json" | jq . > "$config_name"
             # 避免隐私信息输出，若想输出日志则删除 `> /dev/null 2>&1`
-            tg-signer --session-string "$SESSION_STRING" run-once ${key} >
+            tg-signer --session-string "$SESSION_STRING" run-once ${key} > 
         done
     - name: 拉取代码
       uses: actions/checkout@v4
