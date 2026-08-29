@@ -15,11 +15,11 @@ jobs:
       contents: write
     steps:
     - name: Set up Python
-      # 注意：官方 setup-python 目前最新稳定版是 v5，v6 会引发 action not found 错误
+      # 注意：官方最新稳定版是 v5，v6 会报 Action 找不到的错误
       uses: actions/setup-python@v5
       with:
         python-version: '3.13'
-        
+
     - name: Install tg-signer
       run: |
         pip3 install tg-signer
@@ -28,22 +28,18 @@ jobs:
       env:
         SESSION_STRING: ${{ secrets.SESSION_STRINGS }}
         TASK_MAP: ${{ secrets.TASK_MAP }}
-      shell: bash   # 关键：显式声明使用 bash，避免默认 sh 解析语法报错
+      shell: bash   # 显式指定 bash，双保险
       run: |
-        # 使用 jq -c 逐行解析 JSON，彻底避开之前 Tab 分隔符带来的 Shell 语法坑
-        echo "$TASK_MAP" | jq -c 'to_entries[]' | while IFS= read -r entry; do
-            key=$(echo "$entry" | jq -r '.key')
-            value_json=$(echo "$entry" | jq -r '.value | tojson')
-            
-            task_path=".signer/signs/${key}"
-            mkdir -p "${task_path}"
-            config_name="${task_path}/config.json"
-            
-            # 写入任务配置
-            echo "$value_json" | jq . > "$config_name"
-            
-            # 将你的 b64 session 字符串直接传给 --session-string 执行签到
-            tg-signer --session-string "$SESSION_STRING" run-once "${key}" > 
+        # 使用 jq 提取任务名，用 for 循环遍历，避免复杂的管道和 Bash 专有语法
+        for key in $(echo "$TASK_MAP" | jq -r 'keys[]'); do
+          task_path=".signer/signs/${key}"
+          mkdir -p "$task_path"
+          
+          # 安全提取该任务的配置并写入 config.json（使用 jq --arg 避免引号嵌套错误）
+          echo "$TASK_MAP" | jq -c --arg k "$key" '.[$k]' > "${task_path}/config.json"
+          
+          # 执行签到（静默模式，保护隐私）
+          tg-signer --session-string "$SESSION_STRING" run-once "$key" > 
         done
 
     - name: 拉取代码
