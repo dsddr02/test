@@ -1,4 +1,4 @@
-name: tiancheng1
+name: youx
 
 on:
   workflow_dispatch:
@@ -188,8 +188,8 @@ jobs:
               if [[ -n "$remark" && ("$remark" =~ "日本" || "$remark" =~ "JP" || "$remark" =~ "🇯🇵") ]]; then 
                   if [[ -n "$ip_port" ]]; then
                     counter=$((counter + 1))
-                    echo "${ip_port}#天诚${counter}" >> valid_ipsyd.tmp
-                    echo "✅ 添加 JP: ${ip_port}#天诚${counter}"
+                    echo "${ip_port}#西恩${counter}" >> valid_ipsyd.tmp
+                    echo "✅ 添加 JP: ${ip_port}#西恩${counter}"
                   fi
               fi
             done
@@ -248,10 +248,7 @@ jobs:
 
           if [ "$SHOULD_COMMIT" = true ]; then
             # 备份旧文件
-            if [ -f "$OLD_FILE" ]; then
-              mkdir -p old
-              cp "$OLD_FILE" "old/$(TZ='Asia/Shanghai' date +%Y-%m-%d-%H_%M_%S)_valid_ipsyd.txt"
-            fi
+            
             
             # 复制新文件
             cp valid_ipsyd.tmp valid_ipsyd.txt
@@ -269,4 +266,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "更新 ${{ env.COMMIT_TIME }}"
-          file_pattern: 'valid_ipsyd.txt old/*.txt'
+          file_pattern: 'valid_ipsyd.txt'
