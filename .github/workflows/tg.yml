@@ -1,0 +1,76 @@
+name: tg-signer-runner
+
+on:
+  schedule:
+    - cron: '00 00 * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  sign-job:
+    name: sign-job-name
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: install tg-signer
+        run: pip3 install tg-signer
+
+      - name: sign
+        env:
+          SESSION_STRINGS: ${{ secrets.SESSION_STRINGS }}
+          TASK_MAP: ${{ secrets.TASK_MAP }}
+        run: |
+          python3 - <<'EOF'
+          import json, os, subprocess
+
+          raw_sessions = os.environ.get("SESSION_STRINGS", "[]")
+          sessions = json.loads(raw_sessions)
+
+          for i, s in enumerate(sessions):
+              print(f"session[{i}] length={len(s)}", flush=True)
+
+          task_map = json.loads(os.environ.get("TASK_MAP", "{}"))
+
+          for key, value in task_map.items():
+  
+              session_index = value.get("session_index", 0)
+
+              if session_index >= len(sessions):
+                  raise IndexError(
+                      f"session_index {session_index} out of range (len={len(sessions)})"
+                  )
+
+              session_string = sessions[session_index]
+
+              config = {k: v for k, v in value.items() if k != "session_index"}
+
+              task_path = f".signer/signs/{key}"
+              os.makedirs(task_path, exist_ok=True)
+
+              with open(f"{task_path}/config.json", "w") as f:
+                  json.dump(config, f)
+
+              subprocess.run(
+                  ["tg-signer", "--session-string", session_string, "run-once", key],
+                  check=True,
+                  stdout=subprocess.DEVNULL,
+                  stderr=subprocess.DEVNULL,
+              )
+          EOF
+
+      
