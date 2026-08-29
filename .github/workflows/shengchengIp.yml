@@ -1,4 +1,4 @@
-name: jpyoux
+name: youx
 
 on:
   workflow_dispatch:
@@ -24,14 +24,21 @@ jobs:
 
       - name: Process and Compare
         run: |
-          # 1. 使用 Python 脚本绕过 CF 5秒盾并抓取
-          echo "正在通过 Python cloudscraper 抓取数据..."
+          # 1. 定义订阅地址列表
+          SUBSCRIPTIONS=(
+            "https://vl.cm.soso.edu.kg/sub?uuid=00000000-0000-4000-8000-000000000000&host=example.com"
+            "https://honghong.yyylll.kdns.fr/sub/user/eyJ1IjoiZnVodSIsImUiOjE3OTA1NzQ2Mzc3MjUsInMiOiJkNWU2ZjA1YmNlZDliMzgwIn0?protocol=default"
+          )
+
+          # 2. 创建 Python 抓取脚本
           cat << 'EOF' > scraper.py
           import cloudscraper
           import sys
           import re
+          import base64
+          import json
 
-          def fetch_data():
+          def fetch_url(url):
               scraper = cloudscraper.create_scraper(
                   browser={
                       'browser': 'chrome',
@@ -39,93 +46,177 @@ jobs:
                       'desktop': True
                   }
               )
-              url = "https://vl.cm.soso.edu.kg/sub?uuid=00000000-0000-4000-8000-000000000000&host=example.com"
               try:
-                  res = scraper.get(url, timeout=10)
+                  res = scraper.get(url, timeout=15)
                   if res.status_code == 200:
                       html = res.text
+                      # 尝试解析 JSON 格式
+                      if html.strip().startswith('{') and 'data' in html:
+                          try:
+                              data = json.loads(html)
+                              if 'data' in data:
+                                  return data['data']
+                          except:
+                              pass
+                      
+                      # 尝试提取 pre 标签内容
                       if "<pre" in html:
                           match = re.search(r'<pre[^>]*>(.*?)</pre>', html, re.S)
                           if match:
                               return match.group(1).strip()
                       return html.strip()
                   else:
-                      print(f"Error: Status code {res.status_code}", file=sys.stderr)
+                      print(f"Error: Status code {res.status_code} for {url}", file=sys.stderr)
                       return None
               except Exception as e:
-                  print(f"Exception: {str(e)}", file=sys.stderr)
+                  print(f"Exception: {str(e)} for {url}", file=sys.stderr)
                   return None
 
-          data = fetch_data()
-          if data:
-              print(data)
-          else:
-              sys.exit(1)
+          if __name__ == "__main__":
+              # 从命令行参数获取 URL
+              if len(sys.argv) > 1:
+                  url = sys.argv[1]
+                  data = fetch_url(url)
+                  if data:
+                      print(data)
+                  else:
+                      sys.exit(1)
+              else:
+                  sys.exit(1)
           EOF
 
-          MAX_RETRIES=3
-          RETRY_COUNT=0
-          response=""
+          # 3. 清空临时文件
+          rm -f valid_ipsyd.tmp all_data.tmp
+          touch valid_ipsyd.tmp all_data.tmp
 
-          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            response=$(python3 scraper.py)
-            if [ $? -eq 0 ] && [ -n "$response" ]; then
-              echo "✅ 数据抓取成功！"
-              break
-            else
-              RETRY_COUNT=$((RETRY_COUNT + 1))
-              echo "⚠️ 抓取失败，第 $RETRY_COUNT 次重试..."
-              sleep 5
-            fi
-          done
-
-          if [ -z "$response" ]; then
-            echo "❌ 无法绕过防护，跳过执行。"
-            echo "changes_detected=false" >> $GITHUB_ENV
-            exit 0
-          fi
-
-          # 2. 解码并校验内容
-          decoded_data=$(echo "$response" | base64 -d 2>/dev/null)
-          if [[ ! "$decoded_data" =~ "vless://" ]]; then
-            echo "错误：解码数据格式非法。"
-            echo "changes_detected=false" >> $GITHUB_ENV
-            exit 0
-          fi
-
-          # 3. 解析节点，只筛选 JP 区域，并依次编号
-          echo "数据校验通过，开始解析节点..."
-          rm -f valid_ipsyd.tmp
-          
-          # 初始化计数器
-          counter=0
-          
-          echo "$decoded_data" | while IFS= read -r line; do
-            if [[ -z "$line" ]]; then continue; fi
-            ip_port=$(echo "$line" | grep -oP '(?<=@).*?(?=\?)')
-            raw_tag=$(echo "$line" | awk -F'#' '{print $2}')
-            tag=$(python3 -c "import urllib.parse, sys; print(urllib.parse.unquote(urllib.parse.unquote(sys.argv[1])))" "$raw_tag" | tr -d '\r')
-            remark="$tag"
+          # 4. 遍历每个订阅地址
+          for sub_url in "${SUBSCRIPTIONS[@]}"; do
+            echo "🔄 正在处理订阅: $sub_url"
             
-            # 如果 tag 中包含某些字符，跳过
-            if echo "$remark" | grep -q -E "官方优选|security|path"; then 
-              echo "剔除节点: $tag"
+            MAX_RETRIES=3
+            RETRY_COUNT=0
+            response=""
+
+            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+              response=$(python3 scraper.py "$sub_url")
+              if [ $? -eq 0 ] && [ -n "$response" ]; then
+                echo "✅ 数据抓取成功！"
+                break
+              else
+                RETRY_COUNT=$((RETRY_COUNT + 1))
+                echo "⚠️ 抓取失败，第 $RETRY_COUNT 次重试..."
+                sleep 5
+              fi
+            done
+
+            if [ -z "$response" ]; then
+              echo "❌ 无法抓取订阅: $sub_url，跳过..."
               continue
-            fi        
-            
-            # 判断是否为 JP 区域（日本）
-            if [[ "$remark" =~ "日本" || "$remark" =~ "JP" || "$remark" =~ "🇯🇵" ]]; then 
-                # 只保留 JP 区域的，格式为 ip:port#天诚N
-                if [[ -n "$ip_port" ]]; then
-                  # 计数器递增（使用文件来保持跨进程的计数）
-                  counter=$((counter + 1))
-                  echo "${ip_port}#天诚${counter}" >> valid_ipsyd.tmp
-                  echo "✅ 添加 JP: ${ip_port}#天诚${counter}"
-                fi
             fi
+
+            # 5. 尝试解码（base64 或直接处理）
+            decoded_data=""
+            
+            # 尝试 base64 解码
+            decoded_data=$(echo "$response" | base64 -d 2>/dev/null)
+            if [ -z "$decoded_data" ] || [ $? -ne 0 ]; then
+              # 如果解码失败，直接使用原始数据
+              decoded_data="$response"
+            fi
+            
+            # 检查是否包含 vless:// 或 vmess://
+            if [[ ! "$decoded_data" =~ "vless://" && ! "$decoded_data" =~ "vmess://" ]]; then
+              echo "错误：解码数据格式非法，不包含 vless:// 或 vmess://"
+              continue
+            fi
+
+            echo "数据校验通过，开始解析节点..."
+            
+            # 6. 解析节点，筛选 JP 区域
+            # 初始化计数器（需要从文件中读取当前计数）
+            if [ -f counter.tmp ]; then
+              counter=$(cat counter.tmp)
+            else
+              counter=0
+            fi
+            
+            # 处理每一行
+            echo "$decoded_data" | while IFS= read -r line; do
+              if [[ -z "$line" ]]; then continue; fi
+              
+              # 提取 IP:PORT
+              ip_port=$(echo "$line" | grep -oP '(?<=@).*?(?=\?)')
+              if [ -z "$ip_port" ]; then
+                # 尝试其他格式
+                ip_port=$(echo "$line" | grep -oP '(?<=//)[^@]+@[^?]+' | sed 's/.*@//')
+              fi
+              
+              # 提取标签
+              raw_tag=""
+              if [[ "$line" =~ "#" ]]; then
+                raw_tag=$(echo "$line" | awk -F'#' '{print $2}')
+              else
+                # 尝试从 remark 字段提取
+                raw_tag=$(echo "$line" | grep -oP 'remark[=:][^&]+' | sed 's/remark[=:]//')
+              fi
+              
+              if [ -n "$raw_tag" ]; then
+                tag=$(python3 -c "import urllib.parse, sys; print(urllib.parse.unquote(urllib.parse.unquote(sys.argv[1])))" "$raw_tag" 2>/dev/null | tr -d '\r' || echo "$raw_tag")
+              else
+                tag=""
+              fi
+              remark="$tag"
+              
+              # 如果 tag 中包含某些字符，跳过
+              if echo "$remark" | grep -q -E "官方优选|security|path"; then 
+                echo "剔除节点: $tag"
+                continue
+              fi        
+              
+              # 判断是否为 JP 区域（日本）
+              if [[ "$remark" =~ "日本" || "$remark" =~ "JP" || "$remark" =~ "🇯🇵" ]]; then 
+                  if [[ -n "$ip_port" ]]; then
+                    # 计数器递增
+                    counter=$((counter + 1))
+                    echo "${ip_port}#西恩${counter}" >> valid_ipsyd.tmp
+                    echo "✅ 添加 JP: ${ip_port}#西恩${counter}"
+                  fi
+              fi
+            done
+            
+            # 保存计数器
+            echo "$counter" > counter.tmp
+            echo "📊 当前累计节点数: $counter"
+            
           done
 
-          # 4. 对比并更新文件
+          # 7. 清理并检查结果
+          if [ ! -f valid_ipsyd.tmp ] || [ ! -s valid_ipsyd.tmp ]; then
+            echo "⚠️ 未找到任何有效的 JP 节点"
+            echo "changes_detected=false" >> $GITHUB_ENV
+            exit 0
+          fi
+
+          # 8. 去重处理
+          sort -u valid_ipsyd.tmp -o valid_ipsyd.tmp
+          
+          # 重新编号（去除重复后的重新排序）
+          echo "🔄 重新编号节点..."
+          awk -F'#' '{print $1}' valid_ipsyd.tmp > ips_only.tmp
+          rm -f valid_ipsyd_final.tmp
+          counter=0
+          while IFS= read -r ip_port; do
+            if [ -n "$ip_port" ]; then
+              counter=$((counter + 1))
+              echo "${ip_port}#天诚${counter}" >> valid_ipsyd_final.tmp
+            fi
+          done < ips_only.tmp
+          mv valid_ipsyd_final.tmp valid_ipsyd.tmp
+          rm -f ips_only.tmp
+
+          echo "✅ 共找到 $(wc -l < valid_ipsyd.tmp) 个唯一节点"
+
+          # 9. 对比并更新文件
           OLD_FILE="valid_ipsyd.txt"
           SHOULD_COMMIT=false
           
@@ -150,7 +241,7 @@ jobs:
               cp valid_ipsyd.tmp valid_ipsyd.txt
               echo "✅ 已生成 valid_ipsyd.txt，共 $(wc -l < valid_ipsyd.txt) 个节点"
             else
-              echo "⚠️ 未找到任何"
+              echo "⚠️ 未找到任何节点文件"
               echo "changes_detected=false" >> $GITHUB_ENV
               exit 0
             fi
