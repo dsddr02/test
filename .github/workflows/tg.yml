@@ -15,43 +15,10 @@ jobs:
     - uses: actions/setup-python@v6
       with:
         python-version: '3.13'
-    - name: install tg-signer and dependencies
+    - name: install dependencies
       run: |
         pip3 install tg-signer pyrogram tgcrypto
-    - name: 验证 SESSION_STRING
-      env:
-        SESSION_STRING: ${{ secrets.SESSION_STRINGS }}
-      run: |
-        python3 << 'EOF'
-        import os
-        import base64
-        import struct
-        
-        session_string = os.environ.get('SESSION_STRING')
-        if not session_string:
-            print("Error: SESSION_STRING is empty1")
-            exit(1)
-        
-        # 检查是否是有效的 base64
-        try:
-            decoded = base64.b64decode(session_string)
-            print(f"Session string length: {len(decoded)} bytes")
-            
-            # 尝试解析前几个字段来验证
-            if len(decoded) >= 4:
-                # 前4字节是 dc_id
-                dc_id = struct.unpack('<i', decoded[:4])[0]
-                print(f"DC ID: {dc_id}")
-                print("✅ Session string appears valid")
-            else:
-                print("❌ Session string too short, invalid")
-                exit(1)
-                
-        except Exception as e:
-            print(f"❌ Invalid session string: {e}")
-            print("Please regenerate your SESSION_STRING")
-            exit(1)
-        EOF
+    
     - name: sign
       env:
         SESSION_STRING: ${{ secrets.SESSION_STRINGS }}
@@ -63,26 +30,30 @@ jobs:
         import subprocess
         import sys
         
-        # 检查环境变量
         task_map_str = os.environ.get('TASK_MAP', '')
         if not task_map_str:
-            print("Error: TASK_MAP is empty2")
+            print("❌ TASK_MAP is empty")
             sys.exit(1)
         
         session_string = os.environ.get('SESSION_STRING', '')
         if not session_string:
-            print("Error: SESSION_STRING is empty2")
+            print("❌ SESSION_STRING is empty1")
             sys.exit(1)
         
-        # 解析 JSON
         try:
             task_map = json.loads(task_map_str)
-            print(f"Loaded tasks: {list(task_map.keys())}")
+            print(f"✅ Loaded tasks: {list(task_map.keys())}")
         except json.JSONDecodeError as e:
-            print(f"Error: Invalid JSON in TASK_MAP: {e}")
+            print(f"❌ Invalid JSON in TASK_MAP: {e}")
             sys.exit(1)
         
-        # 处理每个任务
+        # 首先查看 tg-signer 的使用方法
+        print("\n检查 tg-signer 命令:")
+        help_cmd = ["tg-signer", "run-once", "--help"]
+        help_result = subprocess.run(help_cmd, capture_output=True, text=True)
+        print("tg-signer run-once --help:")
+        print(help_result.stdout if help_result.stdout else help_result.stderr)
+        
         for key, value in task_map.items():
             print(f"\n{'='*60}")
             print(f"Processing task: {key}")
@@ -97,45 +68,71 @@ jobs:
             with open(config_path, 'w') as f:
                 json.dump(value, f, indent=2, ensure_ascii=False)
             
-            # 执行 tg-signer，显示详细输出
-            print(f"\nExecuting: tg-signer run-once {key}")
+            print(f"✅ Config saved to: {config_path}")
+            
+            # 显示配置文件内容（调试用）
+            with open(config_path, 'r') as f:
+                config_content = f.read()
+                print(f"Config content:\n{config_content[:500]}...")
+            
+            # 尝试不同的命令格式
+            # 格式1: tg-signer --session-string "xxx" run-once task_name
+            print(f"\n尝试执行: tg-signer --session-string [HIDDEN] run-once {key}")
             cmd = [
                 "tg-signer",
                 "--session-string", session_string,
                 "run-once",
-                key,
-                "--debug"  # 添加调试模式
+                key
             ]
             
-            # 使用 subprocess 捕获输出
             result = subprocess.run(cmd, capture_output=True, text=True)
             
-            # 显示输出
             print("STDOUT:")
             print(result.stdout if result.stdout else "(no output)")
             
             print("STDERR:")
-            print(result.stderr if result.stderr else "(no error)")
+            stderr_lines = result.stderr.split('\n') if result.stderr else []
+            for line in stderr_lines:
+                if 'session' in line.lower():
+                    print("[HIDDEN]")
+                else:
+                    print(line)
             
             if result.returncode != 0:
                 print(f"\n❌ Task '{key}' failed with exit code: {result.returncode}")
-                print("\n💡 Possible solutions:")
-                print("1. Regenerate your SESSION_STRING using pyrogram")
-                print("2. Check if your account is properly logged in")
-                print("3. Verify that TASK_MAP configuration is correct")
+                
+                # 如果是任务名称问题，尝试不指定任务名
+                print("\n尝试不指定任务名称...")
+                cmd2 = [
+                    "tg-signer",
+                    "--session-string", session_string,
+                    "run-once"
+                ]
+                result2 = subprocess.run(cmd2, capture_output=True, text=True)
+                
+                print("STDOUT (no task):")
+                print(result2.stdout if result2.stdout else "(no output)")
+                print("STDERR (no task):")
+                for line in (result2.stderr.split('\n') if result2.stderr else []):
+                    if 'session' in line.lower():
+                        print("[HIDDEN]")
+                    else:
+                        print(line)
+                
                 sys.exit(1)
             else:
                 print(f"\n✅ Task '{key}' completed successfully")
         
-        print("\n" + "="*60)
-        print("All tasks processed successfully")
+        print("\n✅ All tasks processed successfully")
         EOF
+    
     - name: 拉取代码
       uses: actions/checkout@v4
       with:
         persist-credentials: true
         fetch-depth: 0
-    - name: 自动续命Actions(防止60天禁用action)
+    
+    - name: 自动续命Actions
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
