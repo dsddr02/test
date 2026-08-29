@@ -1,6 +1,8 @@
+name: tg-signer-runner
+
 on:
   schedule:
-    - cron: '30 02 * * *'   # UTC 02:30 (北京时间 10:30)
+    - cron: '00 00 * * *'
   workflow_dispatch:
 
 permissions:
@@ -13,44 +15,67 @@ jobs:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
+
     steps:
-    - name: Set up Python
-      # 注意：官方最新稳定版是 v5，v6 会报 Action 找不到的错误
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.13'
+      - name: 拉取代码
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
 
-    - name: Install tg-signer
-      run: |
-        pip3 install tg-signer
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
 
-    - name: Sign
-      env:
-        SESSION_STRING: ${{ secrets.SESSION_STRINGS }}
-        TASK_MAP: ${{ secrets.TASK_MAP }}
-      shell: bash   # 显式指定 bash，双保险
-      run: |
-        # 使用 jq 提取任务名，用 for 循环遍历，避免复杂的管道和 Bash 专有语法
-        for key in $(echo "$TASK_MAP" | jq -r 'keys[]'); do
-          task_path=".signer/signs/${key}"
-          mkdir -p "$task_path"
-          
-          # 安全提取该任务的配置并写入 config.json（使用 jq --arg 避免引号嵌套错误）
-          echo "$TASK_MAP" | jq -c --arg k "$key" '.[$k]' > "${task_path}/config.json"
-          
-          # 执行签到（静默模式，保护隐私）
-          tg-signer --session-string "$SESSION_STRING" run-once "$key" > 
-        done
+      - name: install tg-signer
+        run: pip3 install tg-signer
 
-    - name: 拉取代码
-      uses: actions/checkout@v4
-      with:
-        persist-credentials: true
-        fetch-depth: 0
+      - name: sign
+        env:
+          SESSION_STRINGS: ${{ secrets.SESSION_STRINGS }}
+          TASK_MAP: ${{ secrets.TASK_MAP }}
+        run: |
+          python3 - <<'EOF'
+          import json, os, subprocess
 
-    - name: 自动续命 Actions (防止60天禁用)
-      run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        git commit --allow-empty -m "auto keep actions alive (no code change)"
-        git push origin main
+          raw_sessions = os.environ.get("SESSION_STRINGS", "[]")
+          sessions = json.loads(raw_sessions)
+
+          for i, s in enumerate(sessions):
+              print(f"session[{i}] length={len(s)}", flush=True)
+
+          task_map = json.loads(os.environ.get("TASK_MAP", "{}"))
+
+          for key, value in task_map.items():
+  
+              session_index = value.get("session_index", 0)
+
+              if session_index >= len(sessions):
+                  raise IndexError(
+                      f"session_index {session_index} out of range (len={len(sessions)})"
+                  )
+
+              session_string = sessions[session_index]
+
+              config = {k: v for k, v in value.items() if k != "session_index"}
+
+              task_path = f".signer/signs/{key}"
+              os.makedirs(task_path, exist_ok=True)
+
+              with open(f"{task_path}/config.json", "w") as f:
+                  json.dump(config, f)
+
+              subprocess.run(
+                  ["tg-signer", "--session-string", session_string, "run-once", key],
+                  check=True,
+                  stdout=subprocess.DEVNULL,
+                  stderr=subprocess.DEVNULL,
+              )
+          EOF
+
+      - name: 自动续命Actions(防止60天禁用action)
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "auto keep actions alive (no code change)"
+          git push origin main
