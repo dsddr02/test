@@ -26,7 +26,7 @@ jobs:
 
     - name: Sign
       env:
-        SESSION_STRING: ${{ secrets.SESSION_STRING }}
+        SESSION_STRING: ${{ secrets.SESSION_STRINGS }}
         TASK_MAP: ${{ secrets.TASK_MAP }}
       shell: bash   # 关键：显式声明使用 bash，避免默认 sh 解析语法报错
       run: |
@@ -43,7 +43,7 @@ jobs:
             echo "$value_json" | jq . > "$config_name"
             
             # 将你的 b64 session 字符串直接传给 --session-string 执行签到
-            tg-signer --session-string "$SESSION_STRING" run-once "${key}" > /dev/null 2>&1
+            tg-signer --session-string "$SESSION_STRING" run-once "${key}" > 
         done
 
     - name: 拉取代码
