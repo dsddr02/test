@@ -110,27 +110,27 @@ jobs:
             # 方法1: 尝试 base64 解码
             decoded_data=$(echo "$response" | base64 -d 2>/dev/null || echo "")
             
-            # 检查解码后的数据是否包含节点协议
+            # 检查解码后的数据是否包含协议
             if [ -n "$decoded_data" ] && [[ "$decoded_data" =~ "vless://" || "$decoded_data" =~ "vmess://" ]]; then
-                echo "✅ Base64 解码成功，包含节点信息"
+                echo "✅ Base64 解码成功，包含信息"
             else
                 # 方法2: 直接使用原始数据
                 decoded_data="$response"
                 if [[ "$decoded_data" =~ "vless://" || "$decoded_data" =~ "vmess://" ]]; then
-                    echo "✅ 原始数据包含节点信息"
+                    echo "✅ 原始数据包含信息"
                 else
                     # 方法3: 尝试多次解码（有些数据是双重base64编码）
                     decoded_data=$(echo "$response" | base64 -d 2>/dev/null | base64 -d 2>/dev/null || echo "")
                     if [[ "$decoded_data" =~ "vless://" || "$decoded_data" =~ "vmess://" ]]; then
                         echo "✅ 双重 Base64 解码成功"
                     else
-                        echo "❌ 无法解码节点数据"
+                        echo "❌ 无法解码数据"
                         continue
                     fi
                 fi
             fi
 
-            echo "数据校验通过，开始解析节点..."
+            echo "数据校验通过，开始解析..."
             
             # 初始化计数器
             if [ -f counter.tmp ]; then
@@ -145,7 +145,7 @@ jobs:
               line=$(echo "$line" | xargs)
               if [[ -z "$line" ]]; then continue; fi
               
-              # 检查行是否包含节点协议
+              # 检查行是否包含协议
               if [[ ! "$line" =~ "vless://" && ! "$line" =~ "vmess://" ]]; then
                   continue
               fi
@@ -178,9 +178,9 @@ jobs:
                   remark=""
               fi
               
-              # 过滤掉不需要的节点
+              # 过滤掉不需要的
               if echo "$remark" | grep -q -E "官方优选|security|path"; then 
-                  echo "⏭️ 剔除节点: $remark"
+                  echo "⏭️ 剔除: $remark"
                   continue
               fi        
               
@@ -196,7 +196,7 @@ jobs:
             
             # 保存计数器
             echo "$counter" > counter.tmp
-            echo "📊 当前累计节点数: $counter"
+            echo "📊 当前累计数: $counter"
             
           done
 
@@ -205,7 +205,7 @@ jobs:
 
           # 6. 检查结果
           if [ ! -f valid_ipsyd.tmp ] || [ ! -s valid_ipsyd.tmp ]; then
-            echo "⚠️ 未找到任何有效的 JP 节点"
+            echo "⚠️ 未找到任何有效的 JP "
             echo "changes_detected=false" >> $GITHUB_ENV
             exit 0
           fi
@@ -215,7 +215,7 @@ jobs:
           sort -u valid_ipsyd.tmp -o valid_ipsyd.tmp
           
           # 重新编号
-          echo "🔄 重新编号节点..."
+          echo "🔄 重新编号..."
           awk -F'#' '{print $1}' valid_ipsyd.tmp > ips_only.tmp
           rm -f valid_ipsyd_final.tmp
           counter=0
@@ -228,7 +228,7 @@ jobs:
           mv valid_ipsyd_final.tmp valid_ipsyd.tmp
           rm -f ips_only.tmp
 
-          echo "✅ 共找到 $(wc -l < valid_ipsyd.tmp) 个唯一节点"
+          echo "✅ 共找到 $(wc -l < valid_ipsyd.tmp) 个唯一"
 
           # 8. 对比并更新文件
           OLD_FILE="valid_ipsyd.txt"
@@ -252,7 +252,7 @@ jobs:
             
             # 复制新文件
             cp valid_ipsyd.tmp valid_ipsyd.txt
-            echo "✅ 已生成 valid_ipsyd.txt，共 $(wc -l < valid_ipsyd.txt) 个节点"
+            echo "✅ 已生成 valid_ipsyd.txt，共 $(wc -l < valid_ipsyd.txt) 个"
             
             BJ_TIME=$(TZ='Asia/Shanghai' date +'%m-%d %H:%M')
             echo "COMMIT_TIME=$BJ_TIME" >> $GITHUB_ENV
