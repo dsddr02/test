@@ -29,7 +29,7 @@ jobs:
         
         session_string = os.environ.get('SESSION_STRING')
         if not session_string:
-            print("Error: SESSION_STRING is empty")
+            print("Error: SESSION_STRING is empty1")
             exit(1)
         
         # 检查是否是有效的 base64
@@ -54,7 +54,7 @@ jobs:
         EOF
     - name: sign
       env:
-        SESSION_STRING: ${{ secrets.SESSION_STRING }}
+        SESSION_STRING: ${{ secrets.SESSION_STRINGS }}
         TASK_MAP: ${{ secrets.TASK_MAP }}
       run: |
         python3 << 'EOF'
@@ -66,12 +66,12 @@ jobs:
         # 检查环境变量
         task_map_str = os.environ.get('TASK_MAP', '')
         if not task_map_str:
-            print("Error: TASK_MAP is empty")
+            print("Error: TASK_MAP is empty2")
             sys.exit(1)
         
         session_string = os.environ.get('SESSION_STRING', '')
         if not session_string:
-            print("Error: SESSION_STRING is empty")
+            print("Error: SESSION_STRING is empty2")
             sys.exit(1)
         
         # 解析 JSON
