@@ -15,14 +15,46 @@ jobs:
     - uses: actions/setup-python@v6
       with:
         python-version: '3.13'
-    - name: install tg-signer
+    - name: install tg-signer and dependencies
       run: |
-        pip3 install tg-signer
-        # 验证安装
-        tg-signer --version || echo "tg-signer installed"
+        pip3 install tg-signer pyrogram tgcrypto
+    - name: 验证 SESSION_STRING
+      env:
+        SESSION_STRING: ${{ secrets.SESSION_STRING }}
+      run: |
+        python3 << 'EOF'
+        import os
+        import base64
+        import struct
+        
+        session_string = os.environ.get('SESSION_STRING', '')
+        if not session_string:
+            print("Error: SESSION_STRING is empty")
+            exit(1)
+        
+        # 检查是否是有效的 base64
+        try:
+            decoded = base64.b64decode(session_string)
+            print(f"Session string length: {len(decoded)} bytes")
+            
+            # 尝试解析前几个字段来验证
+            if len(decoded) >= 4:
+                # 前4字节是 dc_id
+                dc_id = struct.unpack('<i', decoded[:4])[0]
+                print(f"DC ID: {dc_id}")
+                print("✅ Session string appears valid")
+            else:
+                print("❌ Session string too short, invalid")
+                exit(1)
+                
+        except Exception as e:
+            print(f"❌ Invalid session string: {e}")
+            print("Please regenerate your SESSION_STRING")
+            exit(1)
+        EOF
     - name: sign
       env:
-        SESSION_STRING: ${{ secrets.SESSION_STRINGS }}
+        SESSION_STRING: ${{ secrets.SESSION_STRING }}
         TASK_MAP: ${{ secrets.TASK_MAP }}
       run: |
         python3 << 'EOF'
@@ -30,20 +62,6 @@ jobs:
         import json
         import subprocess
         import sys
-        
-        def run_command(cmd, env=None):
-            """运行命令并返回输出"""
-            try:
-                result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    env=env or os.environ.copy()
-                )
-                return result
-            except Exception as e:
-                print(f"Error running command: {e}")
-                return None
         
         # 检查环境变量
         task_map_str = os.environ.get('TASK_MAP', '')
@@ -62,7 +80,6 @@ jobs:
             print(f"Loaded tasks: {list(task_map.keys())}")
         except json.JSONDecodeError as e:
             print(f"Error: Invalid JSON in TASK_MAP: {e}")
-            print(f"Content: {task_map_str}")
             sys.exit(1)
         
         # 处理每个任务
@@ -80,71 +97,38 @@ jobs:
             with open(config_path, 'w') as f:
                 json.dump(value, f, indent=2, ensure_ascii=False)
             
-            # 显示配置内容（调试用，隐藏敏感信息）
-            print(f"Config saved to: {config_path}")
-            config_preview = json.dumps(value, indent=2, ensure_ascii=False)
-            # 如果 chat_id 是敏感信息，可以隐藏
-            # config_preview = config_preview.replace(str(value.get('chats', [{}])[0].get('chat_id', '')), '***')
-            print(f"Config content preview:\n{config_preview[:500]}...")
-            
-            # 先测试命令是否可用
-            test_cmd = ["tg-signer", "--help"]
-            test_result = run_command(test_cmd)
-            if test_result and test_result.returncode == 0:
-                print("tg-signer command is available")
-            else:
-                print("Error: tg-signer command not working")
-                if test_result:
-                    print(f"stderr: {test_result.stderr}")
-                sys.exit(1)
-            
-            # 执行 tg-signer
-            print(f"\nExecuting: tg-signer --session-string [HIDDEN] run-once {key}")
+            # 执行 tg-signer，显示详细输出
+            print(f"\nExecuting: tg-signer run-once {key}")
             cmd = [
                 "tg-signer",
                 "--session-string", session_string,
                 "run-once",
-                key
+                key,
+                "--debug"  # 添加调试模式
             ]
             
-            # 创建环境变量副本，不暴露 session_string
-            env = os.environ.copy()
-            # 如果需要在子进程中隐藏敏感信息，可以移除 SESSION_STRING
-            # 但 tg-signer 需要它，所以保留
+            # 使用 subprocess 捕获输出
+            result = subprocess.run(cmd, capture_output=True, text=True)
             
-            result = run_command(cmd, env)
+            # 显示输出
+            print("STDOUT:")
+            print(result.stdout if result.stdout else "(no output)")
             
-            if result is None:
-                print(f"Error: Failed to execute command for {key}")
-                sys.exit(1)
-            
-            # 显示命令输出（但隐藏敏感信息）
-            if result.stdout:
-                # 过滤可能的敏感信息
-                stdout_lines = result.stdout.split('\n')
-                for line in stdout_lines:
-                    if 'session' in line.lower() or 'string' in line.lower():
-                        print("[HIDDEN]")
-                    else:
-                        print(line)
-            
-            if result.stderr:
-                stderr_lines = result.stderr.split('\n')
-                for line in stderr_lines:
-                    if 'session' in line.lower() or 'string' in line.lower():
-                        print(f"[HIDDEN] {line[:20]}...")
-                    else:
-                        print(f"Error: {line}")
+            print("STDERR:")
+            print(result.stderr if result.stderr else "(no error)")
             
             if result.returncode != 0:
                 print(f"\n❌ Task '{key}' failed with exit code: {result.returncode}")
-                # 不立即退出，继续处理其他任务？
-                # sys.exit(1)
+                print("\n💡 Possible solutions:")
+                print("1. Regenerate your SESSION_STRING using pyrogram")
+                print("2. Check if your account is properly logged in")
+                print("3. Verify that TASK_MAP configuration is correct")
+                sys.exit(1)
             else:
                 print(f"\n✅ Task '{key}' completed successfully")
         
         print("\n" + "="*60)
-        print("All tasks processed")
+        print("All tasks processed successfully")
         EOF
     - name: 拉取代码
       uses: actions/checkout@v4
