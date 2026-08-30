@@ -26,13 +26,13 @@ jobs:
         OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
         OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
       run: |
-        echo "$TASK_MAP" | jq -r 'to_entries[] | "\(.key)\t\(.value | tojson)"' | while IFS=$'\t' read -r key value_json; do
-            task_path=".signer/signs/${key}"
-            mkdir -p ${task_path}
-            config_name="${task_path}/config.json"
-            echo "$value_json" | jq . > "$config_name"
-            # 避免隐私信息输出，若想输出日志则删除 `> /dev/null 2>&1`
-            tg-signer --session-string "$SESSION_STRING" run-once ${key} >
+        task_json='${{ secrets.TASK_MAP }}'
+        echo "$task_json" | jq -r 'to_entries[] | "\(.key)\t\(.value | tojson)"' | while IFS=$'\t' read -r key value_json; do
+        task_path=".signer/signs/${key}"
+        mkdir -p ${task_path}
+        config_name="${task_path}/config.json"
+        echo "$value_json" | jq . > "$config_name"
+        tg-signer --session-string "$SESSION_STRING" run-once ${key} > /dev/null 2>&1
         done
     - name: 拉取代码
       uses: actions/checkout@v4
