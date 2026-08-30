@@ -1,42 +1,95 @@
-name: Update guding
+name: Delete All Workflow Runs
 
 on:
+  workflow_dispatch:   # 手动触发
+    inputs:
+      confirm:
+        description: '输入 yes 确认删除所有执行记录'
+        required: true
+        default: 'no'
+      keep_latest:
+        description: '保留最近 N 次执行记录（默认0=全部删除）'
+        required: false
+        default: '0'
+        type: number
   schedule:
-    - cron: "0 */3 * * *"  # 每10分钟跑一次
-  workflow_dispatch:
+    - cron: '0 0 1 * *'   # 可选：每月1号自动清理
+
+permissions:
+  actions: write        # 需要 actions 写权限
+  contents: read
 
 jobs:
-  update:
+  delete-runs:
     runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event.inputs.confirm == 'yes'
+
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Install dependencies
-        run: |
-              pip install requests pandas
-
-     
-
-      - name: Make script executable
-        run: chmod +x CloudflareST
-
-      - name: cstest
+      - name: 删除所有工作流执行记录
         env:
-         TEST_URL: ${{ secrets.TEST_URL }}  # 如果是敏感数据，使用 secrets.TEST_URL
-         CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-         CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
-         CF_RECORD_NAME: ${{ secrets.CF_RECORD_NAME }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          KEEP_LATEST: ${{ github.event.inputs.keep_latest || 0 }}
         run: |
-          set -e
-          ./CloudflareST -f ip.txt -t 8 -p 0 -sl 1 -n 300  -dd -tp 2087 -tlr 0 -url $TEST_URL
-          
-            python huoqdn.py
-      #- name: Clean up Workflow Runs
-       # uses: Mattraks/delete-workflow-runs@v2
-       # with:
-        # #token: ${{ secrets.GITHUB_TOKEN }}
-        # token: ${{ secrets.PAT_TOKEN }}
-         
-        # repository: ${{ github.repository }}
-       #  retain_days: 1
-        # keep_minimum_runs: 0
+          # 获取所有 workflow runs 列表（分页遍历所有页）
+          page=1
+          keep=0
+          keep=$KEEP_LATEST
+          deleted=0
+
+          while true; do
+            # 列出 workflow runs（每页最多 100 条）
+            runs=$(curl -s -H "Authorization: token $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/$REPO/actions/runs?per_page=100&page=$page")
+
+            # 提取 run id 列表
+            run_ids=$(echo "$runs" | jq -r '.workflow_runs[].id' 2>/dev/null)
+
+            # 如果为空则退出循环
+            if [ -z "$run_ids" ] || [ "$run_ids" == "null" ]; then
+              break
+            fi
+
+            count=$(echo "$runs" | jq '.workflow_runs | length')
+            echo "第 $page 页，找到 $count 条执行记录"
+            if [ "$count" == "0" ]; then
+              break
+            fi
+
+            # 分别删除每条 run
+            for run_id in $run_ids; do
+              # 如果设置了 keep_latest 且前 keep 条被跳过
+              if [ "$keep" -gt 0 ]; then
+                keep=$((keep-1))
+                echo "跳过保留中的 run_id: $run_id"
+                continue
+              fi
+
+              echo "正在删除 run_id: $run_id"
+              status=$(curl -s -o /dev/null -w "%{http_code}" \
+                -X DELETE \
+                -H "Authorization: token $GH_TOKEN" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/$REPO/actions/runs/$run_id")
+
+              if [ "$status" == "204" ]; then
+                deleted=$((deleted+1))
+                echo "✓ 已删除 run_id: $run_id"
+              elif [ "$status" == "403" ]; then
+                echo "⚠️ 无权限删除 run_id: $run_id（可能正在运行中或权限不足）"
+              elif [ "$status" == "409" ]; then
+                echo "⚠️ 无法删除 run_id: $run_id（正在运行中）"
+              else
+                echo "❌ 删除失败 run_id: $run_id (HTTP $status)"
+              fi
+
+              # 避免触发 API rate limit
+              sleep 0.2
+            done
+
+            page=$((page+1))
+          done
+
+          echo "=========================================="
+          echo "✅ 清理完成！共删除 $deleted 条执行记录。"
