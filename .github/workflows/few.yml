@@ -76,9 +76,4 @@ jobs:
               )
           EOF
 
-      - name: 自动续命Actions(防止60天禁用action)
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git commit --allow-empty -m "auto keep actions alive (no code change)"
-          git push origin main
+      
