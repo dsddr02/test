@@ -15,124 +15,31 @@ jobs:
     - uses: actions/setup-python@v6
       with:
         python-version: '3.13'
-    - name: install dependencies
+    - name: install tg-signer
       run: |
-        pip3 install tg-signer pyrogram tgcrypto
-    
+        pip3 install tg-signer
     - name: sign
       env:
         SESSION_STRING: ${{ secrets.SESSION_STRINGS }}
-        TASK_MAP: ${{ secrets.TASK_MAP }}
+        TASK_MAP: ${{ secrets.TASK_MAP1 }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+        OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
       run: |
-        python3 << 'EOF'
-        import os
-        import json
-        import subprocess
-        import sys
-        
-        task_map_str = os.environ.get('TASK_MAP', '')
-        if not task_map_str:
-            print("❌ TASK_MAP is empty")
-            sys.exit(1)
-        
-        session_string = os.environ.get('SESSION_STRING', '')
-        if not session_string:
-            print("❌ SESSION_STRING is empty1")
-            sys.exit(1)
-        
-        try:
-            task_map = json.loads(task_map_str)
-            print(f"✅ Loaded tasks: {list(task_map.keys())}")
-        except json.JSONDecodeError as e:
-            print(f"❌ Invalid JSON in TASK_MAP: {e}")
-            sys.exit(1)
-        
-        # 首先查看 tg-signer 的使用方法
-        print("\n检查 tg-signer 命令:")
-        help_cmd = ["tg-signer", "run-once", "--help"]
-        help_result = subprocess.run(help_cmd, capture_output=True, text=True)
-        print("tg-signer run-once --help:")
-        print(help_result.stdout if help_result.stdout else help_result.stderr)
-        
-        for key, value in task_map.items():
-            print(f"\n{'='*60}")
-            print(f"Processing task: {key}")
-            print(f"{'='*60}")
-            
-            # 创建配置目录
-            task_path = f".signer/signs/{key}"
-            os.makedirs(task_path, exist_ok=True)
-            
-            # 写入配置文件
-            config_path = f"{task_path}/config.json"
-            with open(config_path, 'w') as f:
-                json.dump(value, f, indent=2, ensure_ascii=False)
-            
-            print(f"✅ Config saved to: {config_path}")
-            
-            # 显示配置文件内容（调试用）
-            with open(config_path, 'r') as f:
-                config_content = f.read()
-                print(f"Config content:\n{config_content[:500]}...")
-            
-            # 尝试不同的命令格式
-            # 格式1: tg-signer --session-string "xxx" run-once task_name
-            print(f"\n尝试执行: tg-signer --session-string [HIDDEN] run-once {key}")
-            cmd = [
-                "tg-signer",
-                "--session-string", session_string,
-                "run-once",
-                key
-            ]
-            
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            
-            print("STDOUT:")
-            print(result.stdout if result.stdout else "(no output)")
-            
-            print("STDERR:")
-            stderr_lines = result.stderr.split('\n') if result.stderr else []
-            for line in stderr_lines:
-                if 'session' in line.lower():
-                    print("[HIDDEN]")
-                else:
-                    print(line)
-            
-            if result.returncode != 0:
-                print(f"\n❌ Task '{key}' failed with exit code: {result.returncode}")
-                
-                # 如果是任务名称问题，尝试不指定任务名
-                print("\n尝试不指定任务名称...")
-                cmd2 = [
-                    "tg-signer",
-                    "--session-string", session_string,
-                    "run-once"
-                ]
-                result2 = subprocess.run(cmd2, capture_output=True, text=True)
-                
-                print("STDOUT (no task):")
-                print(result2.stdout if result2.stdout else "(no output)")
-                print("STDERR (no task):")
-                for line in (result2.stderr.split('\n') if result2.stderr else []):
-                    if 'session' in line.lower():
-                        print("[HIDDEN]")
-                    else:
-                        print(line)
-                
-                sys.exit(1)
-            else:
-                print(f"\n✅ Task '{key}' completed successfully")
-        
-        print("\n✅ All tasks processed successfully")
-        EOF
-    
+        echo "$TASK_MAP" | jq -r 'to_entries[] | "\(.key)\t\(.value | tojson)"' | while IFS=$'\t' read -r key value_json; do
+            task_path=".signer/signs/${key}"
+            mkdir -p ${task_path}
+            config_name="${task_path}/config.json"
+            echo "$value_json" | jq . > "$config_name"
+            # 避免隐私信息输出，若想输出日志则删除 `> /dev/null 2>&1`
+            tg-signer --session-string "$SESSION_STRING" run-once ${key} >
+        done
     - name: 拉取代码
       uses: actions/checkout@v4
       with:
         persist-credentials: true
         fetch-depth: 0
-    
-    - name: 自动续命Actions
+    - name: 自动续命Actions(防止60天禁用action)
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
