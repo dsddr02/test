@@ -222,7 +222,7 @@ jobs:
           while IFS= read -r ip_port; do
             if [ -n "$ip_port" ]; then
               counter=$((counter + 1))
-              echo "${ip_port}#天诚${counter}" >> valid_ipsyd_final.tmp
+              echo "${ip_port}#西恩${counter}" >> valid_ipsyd_final.tmp
             fi
           done < ips_only.tmp
           mv valid_ipsyd_final.tmp valid_ipsyd.tmp
@@ -263,7 +263,7 @@ jobs:
 
       - name: Commit and Push
         if: env.changes_detected == 'true'
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "更新 ${{ env.COMMIT_TIME }}"
           file_pattern: 'valid_ipsyd.txt'
