@@ -26,8 +26,7 @@ jobs:
         OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
         OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
       run: |
-        task_json='${{ secrets.TASK_MAP }}'
-        echo "$task_json" | jq -r 'to_entries[] | "\(.key)\t\(.value | tojson)"' | while IFS=$'\t' read -r key value_json; do
+        echo '$TASK_MAP' | jq -r 'to_entries[] | "\(.key)\t\(.value | tojson)"' | while IFS=$'\t' read -r key value_json; do
         task_path=".signer/signs/${key}"
         mkdir -p ${task_path}
         config_name="${task_path}/config.json"
