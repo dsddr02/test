@@ -2,7 +2,7 @@ name: toooo
 
 on:
   schedule:
-    - cron: '00 00 * * *'
+    - cron: '22 02 * * *'
   workflow_dispatch:
 
 permissions:
