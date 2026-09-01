@@ -71,8 +71,8 @@ jobs:
               subprocess.run(
                   ["tg-signer", "--session-string", session_string, "run-once", key],
                   check=True,
-                  stdout=subprocess.DEVNULL,
-                  stderr=subprocess.DEVNULL,
+                 # stdout=subprocess.DEVNULL,
+                #  stderr=subprocess.DEVNULL,
               )
           EOF
 
