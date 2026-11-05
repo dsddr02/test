@@ -1,17 +1,16 @@
-# .github/workflows/screenshot.yml
-name: Daily Screenshot
+name: Keep HF Space Alive
+
 on:
   schedule:
-    - cron: '24 06 * * *'  # 每天8点运行
-  workflow_dispatch:
+    - cron: '0 6 * * *'   # 每 6 小时一次，UTC 时间
+  workflow_dispatch:          # 允许手动触发测试
+
 jobs:
-  screenshot:
+  ping:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - run: pip install cloakbrowser fake-useragent
-      - run: python your_script.py
-      #- uses: actions/upload-artifact@v7
-       # with:
-        #  name: screenshots
-          #path: screenshots/
+      - name: Ping Space
+        run: |
+          curl -fsSL --retry 3 --retry-delay 5 --max-time 60 \
+            "https://mowupo-mohujj.hf.space" -o /dev/null \
+            -w "status=%{http_code} time=%{time_total}s\n"
